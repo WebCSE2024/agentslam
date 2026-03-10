@@ -1,0 +1,43 @@
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
+const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "30m";
+const REFRESH_TOKEN_TTL = process.env.REFRESH_TOKEN_TTL || "7d";
+
+export function generateSessionId() {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+export function generateTokenId() {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+export function signAccessToken({ userId, sid, role, username, email }) {
+  return jwt.sign(
+    { sub: userId, sid, role, username, email, type: "access" },
+    process.env.JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_TTL }
+  );
+}
+
+export function signRefreshToken({ userId, sid }) {
+  return jwt.sign(
+    { sub: userId, sid, type: "refresh" },
+    process.env.JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_TTL }
+  );
+}
+
+export function verifyToken(token) {
+  return jwt.verify(token, process.env.JWT_SECRET);
+}
+
+export function getCookieOptions({ httpOnly }) {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    httpOnly,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+  };
+}

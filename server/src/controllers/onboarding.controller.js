@@ -1,0 +1,128 @@
+import userModel from "../models/user.model";
+import { sendEmail } from "../services/email.service";
+import { onboardingEmailTemplate } from "../templates/onboardingEmail";
+import ApiError from "../utils/apierror";
+import ApiResponse from "../utils/apiresponse";
+import { USER_ROLE } from "../utils/enum";
+import bcrypt from 'bcryptjs'
+
+class OnboardingController{
+
+    createUserFromPayload = async ({ role, name, email, admissionNumber }) => {
+
+        if (!role || !USER_ROLE.includes(role)) {
+            throw new ApiError(400, "Invalid role");
+        }
+        if (!email || !admissionNumber) {
+            throw new ApiError(400, "Email and admissionNumber are required");
+        }
+
+        const normalizedEmail = String(email).toLowerCase().trim();
+        const normalizedAdmission = String(admissionNumber).trim();
+
+        const existing = await userModel.findOne({
+            $or: [{ email: normalizedEmail }, { admissionNumber: normalizedAdmission }],
+        });
+
+        if (existing) {
+            throw new ApiError(400, "User already exists");
+        }
+
+        const plainPassword = generatePassword(12);
+        const hashedPassword = await bcrypt.hash(plainPassword, 12);
+
+        const username = normalizedAdmission.toLowerCase();
+
+        let user;
+        try {
+            user = await userModel.create({
+                role,
+                status: "active",
+                name: String(name || "").trim(),
+                email: normalizedEmail,
+                admissionNumber: normalizedAdmission,
+                username,
+                password: hashedPassword,
+                tournamentPoints: 0,
+            });
+        } catch (error) {
+            throw new ApiError(500, "Failed to create user");
+        }
+
+        const tpl = onboardingEmailTemplate({
+            name: user.name,
+            email: user.email,
+            admissionNumber: user.admissionNumber,
+            role: user.role,
+        });
+
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: tpl.subject,
+                text: tpl.text,
+                html: tpl.html,
+            });
+        } catch (error) {
+            throw new ApiError(500, "Failed to send email");
+        }
+
+        return {
+            id: user._id,
+            role: user.role,
+            name: user.name,
+            email: user.email,
+            admissionNumber: user.admissionNumber,
+        };
+    }
+
+    createUser = asyncHandler(async (req, res) => {
+
+        const { role, name, email, admissionNumber } = req.body;
+
+        const newUser = await this.createUserFromPayload({
+            role,
+            name,
+            email,
+            admissionNumber,
+        });
+
+        return new ApiResponse(201, newUser, "User created successfully");
+    })
+
+    createUsersBatch = asyncHandler(async (req, res) => {
+        const users = Array.isArray(req.body?.users) ? req.body.users : [];
+
+        if (!users.length) {
+            throw new ApiError(400, "User Array is Required")
+        }
+
+        const results = [];
+        let failed = 0;
+
+        for (const entry of users) {
+            try {
+                const result = await this.createUserFromPayload(entry || {});
+                results.push(result);
+            } catch (err) {
+                failed += 1;
+                const logInfo = {
+                    name: entry?.name,
+                    email: entry?.email,
+                    role: entry?.role,
+                    admissionNumber: entry?.admissionNumber,
+                };
+                console.error("Onboarding batch error:", logInfo, err);
+            }
+        }
+
+        return new ApiResponse(201, {
+            created: results.length,
+            failed,
+            users: results,
+        }), "Users batch processed successfully";
+    })
+ 
+}
+
+export default new OnboardingController()
