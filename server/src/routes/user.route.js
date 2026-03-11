@@ -1,7 +1,7 @@
 import { Router } from "express";
-import userController from "../controllers/user.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import rateLimiter from "../middlewares/ratelimit.middleware";
+import userController from "../controllers/user.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 // 60 requests per minute per user for general user endpoints
 const userLimiter = rateLimiter.byUser({

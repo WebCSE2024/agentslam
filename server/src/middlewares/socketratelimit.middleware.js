@@ -1,4 +1,4 @@
-import redisClient from "../configs/redis.config";
+import redisClient from "../configs/redis.config.js";
 
 export async function socketRateLimit(key, limit = 5, window = 2*60) {
 

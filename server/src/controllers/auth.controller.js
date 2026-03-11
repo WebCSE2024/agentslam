@@ -1,11 +1,11 @@
-import userModel from "../models/user.model";
-import { asyncHandler } from "../utils/asyncHandler";
-import ApiError from "../utils/apierror";
-import ApiResponse from "../utils/apiresponse";
-import bcrypt from 'bcryptjs'
-import { generateSessionId, signAccessToken, signRefreshToken, verifyToken, getCookieOptions } from "../utils/authtoken";
-import redisClient from "../configs/redis.config";
-import { userSessionKey } from "../utils/rediskeys";
+import userModel from "../models/user.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import ApiError from "../utils/apierror.js";
+import ApiResponse from "../utils/apiresponse.js";
+import bcrypt from 'bcryptjs';
+import { generateSessionId, signAccessToken, signRefreshToken, verifyToken, getCookieOptions } from "../utils/authtoken.js";
+import redisClient from "../configs/redis.config.js";
+import { userSessionKey } from "../utils/rediskeys.js";
 
 class AuthController{
 

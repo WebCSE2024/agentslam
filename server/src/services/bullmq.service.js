@@ -1,6 +1,6 @@
-import bullmq from 'bullmq'
-import matchController from '../controllers/match.controller';
-import matchModel from '../models/match.model';
+import bullmq from 'bullmq';
+import matchController from '../controllers/match.controller.js';
+import matchModel from '../models/match.model.js';
 const { Queue, Worker } = bullmq;
 
 class BullMQService {

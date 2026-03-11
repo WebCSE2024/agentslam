@@ -1,7 +1,7 @@
 import { Router } from "express";
-import matchController from "../controllers/match.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import rateLimiter from "../middlewares/ratelimit.middleware";
+import matchController from "../controllers/match.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 // 60 requests per minute per user for match management
 const matchLimiter = rateLimiter.byUser({

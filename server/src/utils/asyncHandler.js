@@ -1,4 +1,4 @@
-export const asyncHandler = async (fn) =>{
+export const asyncHandler = (fn) =>{
 
     return async (req, res, next) => {
         try {

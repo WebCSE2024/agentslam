@@ -1,10 +1,12 @@
-import userModel from "../models/user.model";
-import { sendEmail } from "../services/email.service";
-import { onboardingEmailTemplate } from "../templates/onboardingEmail";
-import ApiError from "../utils/apierror";
-import ApiResponse from "../utils/apiresponse";
-import { USER_ROLE } from "../utils/enum";
-import bcrypt from 'bcryptjs'
+import userModel from "../models/user.model.js";
+import { sendEmail } from "../services/email.service.js";
+import { onboardingEmailTemplate } from "../templates/onboardingEmail.js";
+import ApiError from "../utils/apierror.js";
+import ApiResponse from "../utils/apiresponse.js";
+import { USER_ROLE } from "../utils/enum.js";
+import bcrypt from 'bcryptjs';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { generatePassword } from "../utils/helpers.js";
 
 class OnboardingController{
 

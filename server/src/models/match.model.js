@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { MATCH_STATUS, TEAM_NAME, TOPIC_TYPE } from '../utils/enum'
+import { MATCH_STATUS, TEAM_NAME, TOPIC_TYPE } from '../utils/enum.js'
 
 const matchSchema = new mongoose.Schema({
     opponents: {

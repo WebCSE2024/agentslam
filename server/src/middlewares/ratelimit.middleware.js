@@ -1,4 +1,4 @@
-import redisClient from "../configs/redis.config";
+import redisClient from "../configs/redis.config.js";
 
 /**
  * Redis-backed fixed-window rate limiter.

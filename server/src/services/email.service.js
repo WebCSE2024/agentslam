@@ -1,12 +1,10 @@
 import { createTransport } from "nodemailer";
-import dotenv from "dotenv";
 
-dotenv.config();
-const { SMTP_EMAIL, SMTP_PASS, SMTP_HOST, SMTP_PORT,EMAIL } = process.env;
+const { SMTP_EMAIL, SMTP_PASS, SMTP_HOST, SMTP_PORT, EMAIL } = process.env;
 
 const transporter = createTransport({
   host: SMTP_HOST,
-  port: SMTP_PORT,
+  port: Number(SMTP_PORT) || 587,
   secure: false,
   auth: {
     user: SMTP_EMAIL,
@@ -14,40 +12,31 @@ const transporter = createTransport({
   },
 });
 
+// Verify connection at startup — log only, never throw (would crash via uncaughtException)
 transporter.verify((error) => {
   if (error) {
-    throw error;
+    console.error("SMTP transporter error:", error.message);
   } else {
-    console.log("Ready for message");
+    console.log("SMTP ready");
   }
 });
 
-export async function sendEmail(toEmail, subject, text, verificationcCode) {
+/**
+ * Send an email.
+ * @param {{ to: string, subject: string, html?: string, text?: string }} options
+ */
+export async function sendEmail({ to, subject, html, text }) {
   try {
     await transporter.sendMail({
-      from: EMAIL,
-      to: toEmail,
-      subject: subject,
-      text: verificationcCode ? `${text}  ${verificationcCode}.` : text,
-      html: undefined,
-    });
-    console.log("Email sent successfully");
-  } catch (error) {
-    console.error("Error sending email:", error);
-  }
-}
-
-export async function sendEmailHtml({ to, subject, text, html }) {
-  try {
-    await transporter.sendMail({
-      from: EMAIL,
+      from: EMAIL || SMTP_EMAIL,
       to,
       subject,
       text,
       html,
     });
-    console.log("Email sent successfully");
+    console.log(`Email sent to ${to}`);
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error sending email:", error.message);
+    throw error; // re-throw so the controller can catch and return 500
   }
 }

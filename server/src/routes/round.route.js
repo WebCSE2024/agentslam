@@ -1,7 +1,7 @@
 import { Router } from "express";
-import roundController from "../controllers/round.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import rateLimiter from "../middlewares/ratelimit.middleware";
+import roundController from "../controllers/round.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 // 60 requests per minute per user for round management
 const roundLimiter = rateLimiter.byUser({

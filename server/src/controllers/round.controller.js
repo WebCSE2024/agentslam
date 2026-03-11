@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/apierror.js";
 import ApiResponse from "../utils/apiresponse.js";
 import { ROUND_STATUS, } from "../utils/enum.js";
-import redisClient from "../config/redis.config.js";
+import redisClient from "../configs/redis.config.js";
 
 class RoundController{
 

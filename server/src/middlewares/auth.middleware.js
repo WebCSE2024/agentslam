@@ -1,7 +1,7 @@
-import redisClient from "../configs/redis.config";
-import { signAccessToken, verifyToken, getCookieOptions } from "../utils/authtoken";
-import { userSessionKey } from "../utils/rediskeys";
-import userModel from "../models/user.model";
+import redisClient from "../configs/redis.config.js";
+import { signAccessToken, verifyToken, getCookieOptions } from "../utils/authtoken.js";
+import { userSessionKey } from "../utils/rediskeys.js";
+import userModel from "../models/user.model.js";
 
 export const authMiddleware = async (req, res, next) => {
   const accessToken = req.cookies?.access_token;
@@ -39,7 +39,7 @@ export const authMiddleware = async (req, res, next) => {
       }
     }
   }
-  
+
   // fallback to refresh token if access token is missing or expired
   if (!refreshToken) {
     return res.status(401).json({ message: "Not authenticated" });

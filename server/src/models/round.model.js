@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { ROUND_STATUS } from "../utils/enum";
+import { ROUND_STATUS } from "../utils/enum.js";
 
 const roundSchema = new mongoose.Schema(
   {

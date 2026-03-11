@@ -1,7 +1,7 @@
-import topicModel from "../models/topic.model";
-import { asyncHandler } from "../utils/asyncHandler";
-import ApiError from "../utils/apierror";
-import ApiResponse from "../utils/apiresponse";
+import topicModel from "../models/topic.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import ApiError from "../utils/apierror.js";
+import ApiResponse from "../utils/apiresponse.js";
 
 class TopicController{
 
@@ -126,3 +126,5 @@ class TopicController{
         return;
      }
 }
+
+export default new TopicController();

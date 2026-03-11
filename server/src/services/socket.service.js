@@ -1,11 +1,11 @@
 import { WebSocketServer } from 'ws';
-import { MATCH_STATUS, SOCKET_MESSAGE_TYPE } from '../utils/enum';
-import bullmqService from './bullmq.service';
-import { socketRateLimit } from '../middlewares/socketratelimit.middleware';
-import redisClient from '../configs/redis.config';
-import { verifyToken } from '../utils/authtoken';
-import { userSessionKey } from '../utils/rediskeys';
-import matchModel from '../models/match.model';
+import { MATCH_STATUS, SOCKET_MESSAGE_TYPE } from '../utils/enum.js';
+import bullmqService from './bullmq.service.js';
+import { socketRateLimit } from '../middlewares/socketratelimit.middleware.js';
+import redisClient from '../configs/redis.config.js';
+import { verifyToken } from '../utils/authtoken.js';
+import { userSessionKey } from '../utils/rediskeys.js';
+import matchModel from '../models/match.model.js';
 
 // Parse a raw cookie header string into a key-value object
 const parseCookies = (cookieHeader = "") =>

@@ -1,4 +1,4 @@
-import redisClient from "../configs/redis.config";
+import redisClient from "../configs/redis.config.js";
 
 export function userSessionKey(userId) {
   return `session:user:${userId}`;

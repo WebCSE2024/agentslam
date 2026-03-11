@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { authController } from "../controllers/auth.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import rateLimiter from "../middlewares/ratelimit.middleware";
+import { authController } from "../controllers/auth.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 // 10 login attempts per 15 minutes per IP (no user session yet)
 const loginLimiter = rateLimiter.byIp({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    keyPrefix: "login",
 });
 
 class AuthRouter {

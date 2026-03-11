@@ -1,7 +1,7 @@
 import { Router } from "express";
-import onboardingController from "../controllers/onboarding.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import rateLimiter from "../middlewares/ratelimit.middleware";
+import onboardingController from "../controllers/onboarding.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 // 30 onboarding requests per minute per user (batch ops can be large)
 const onboardingLimiter = rateLimiter.byUser({

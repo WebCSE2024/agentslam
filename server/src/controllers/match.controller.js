@@ -1,12 +1,12 @@
-import matchModel from "../models/match.model";
-import { asyncHandler } from "../utils/asyncHandler";
-import ApiError from "../utils/apierror";
-import ApiResponse from "../utils/apiresponse";
-import redisClient from "../config/redis.config";
-import roundModel from "../models/round.model";
-import topicModel from "../models/topic.model";
-import socketService from "../services/socket.service";
-import { MATCH_STATUS } from "../utils/enum";
+import matchModel from "../models/match.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import ApiError from "../utils/apierror.js";
+import ApiResponse from "../utils/apiresponse.js";
+import redisClient from "../configs/redis.config.js";
+import roundModel from "../models/round.model.js";
+import topicModel from "../models/topic.model.js";
+import socketService from "../services/socket.service.js";
+import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS, SOCKET_MESSAGE_TYPE } from "../utils/enum.js";
 
 export const MATCH_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 class MatchController{

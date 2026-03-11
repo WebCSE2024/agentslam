@@ -1,4 +1,4 @@
-import ApiError from "../utils/apierror";
+import ApiError from "../utils/apierror.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
