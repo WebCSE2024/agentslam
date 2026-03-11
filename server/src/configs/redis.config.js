@@ -1,10 +1,8 @@
 import redis from "ioredis";
 
 const redisClient = new redis({
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT,
-
-}); // Change to URL based before Deploy....
+    url: process.env.REDIS_URI
+}); 
 
 redisClient.on("connect", () => {
     console.log("Redis connected");

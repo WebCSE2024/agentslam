@@ -114,4 +114,15 @@ class TopicController{
 
         return new ApiResponse(200, null, "Topic deleted successfully");
     })
+
+    resetTopicDB = async() => {
+        
+        try {
+            await topicModel.deleteMany({});
+            console.log("Topic database reset successfully");
+        } catch (error) {
+            console.error("Error resetting topic database:", error);
+        }
+        return;
+     }
 }

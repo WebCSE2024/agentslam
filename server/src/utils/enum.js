@@ -18,7 +18,9 @@ export const ROUND_STATUS = {
 
 export const MATCH_STATUS = {
     PENDING: "pending",
+    ACTIVE: "active",
     STARTED: "started",
+    PAUSED: "paused",
     COMPLETED: "completed"
 }
 
@@ -36,4 +38,18 @@ export const WINNER_TYPE = {
 
     CURRENT:"current",
     PREVIOUS:"previous",
+}
+
+export const SOCKET_MESSAGE_TYPE = {
+
+    WELCOME: "welcome",
+    USER_JOINED: "user-joined",
+    USER_LEFT: "user-left",
+    INFO: "info",
+    ERROR: "error",
+    MATCH_UPDATE: "match-update",
+    MATCH_STATE: "match-state",
+    MATCH_PAUSED: "match-paused",
+    MATCH_RESUMED: "match-resumed",
+    DEBATE_MESSAGE: "debate-message",
 }

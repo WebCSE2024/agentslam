@@ -1,37 +1,92 @@
-import redisClient from "../config/redisClient.js";
-import { verifyToken } from "../utils/authTokens.js";
-import { userSessionKey } from "../utils/redisKeys.js";
+import redisClient from "../configs/redis.config";
+import { signAccessToken, verifyToken, getCookieOptions } from "../utils/authtoken";
+import { userSessionKey } from "../utils/rediskeys";
+import userModel from "../models/user.model";
 
 export const authMiddleware = async (req, res, next) => {
-  const token = req.cookies?.access_token;
-  if (!token) {
+  const accessToken = req.cookies?.access_token;
+  const refreshToken = req.cookies?.refresh_token;
+
+  if (accessToken) {
+    try {
+      const decoded = verifyToken(accessToken);
+
+      if (decoded.type !== "access") {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userId = String(decoded.sub);
+      const sid = decoded.sid;
+
+      const activeSid = await redisClient.get(userSessionKey(userId));
+      if (!activeSid || activeSid !== sid) {
+        return res.status(401).json({ message: "Invalid session" });
+      }
+
+      req.user = {
+        id: userId,
+        sid,
+        username: decoded.username,
+        email: decoded.email,
+        role: decoded.role,
+      };
+
+      return next();
+    } catch (err) {
+      // Only fall through on expiry; any other JWT error is a hard reject
+      if (err.name !== "TokenExpiredError") {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+    }
+  }
+  
+  // fallback to refresh token if access token is missing or expired
+  if (!refreshToken) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
   try {
-    const decoded = verifyToken(token);
-    if (decoded.type !== "access") {
+    const decoded = verifyToken(refreshToken);
+
+    if (decoded.type !== "refresh") {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
     const userId = String(decoded.sub);
     const sid = decoded.sid;
 
+    // Verify the session is still alive in Redis
     const activeSid = await redisClient.get(userSessionKey(userId));
     if (!activeSid || activeSid !== sid) {
-      return res.status(401).json({ message: "Invalid session" });
+      return res.status(401).json({ message: "Session expired, please log in again" });
     }
 
-    req.user = {
-      id: userId,
+    const user = await userModel.findById(userId).select("_id username email role");
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Issue fresh access token — same session, same sid, no rotation needed
+    const newAccessToken = signAccessToken({
+      userId: user._id.toString(),
       sid,
-      username: decoded.username,
-      email: decoded.email,
-      role: decoded.role,
+      role: user.role,
+      username: user.username,
+      email: user.email,
+    });
+
+    res.cookie("access_token", newAccessToken, getCookieOptions({ httpOnly: true }));
+
+    req.user = {
+      id: user._id.toString(),
+      sid,
+      username: user.username,
+      email: user.email,
+      role: user.role,
     };
 
     return next();
-  } catch (error) {
+  } catch (err) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 };

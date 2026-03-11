@@ -3,10 +3,9 @@ import { asyncHandler } from "../utils/asyncHandler";
 import ApiError from "../utils/apierror";
 import ApiResponse from "../utils/apiresponse";
 import bcrypt from 'bcryptjs'
-import { generateSessionId, signAccessToken, signRefreshToken, verifyToken } from "../utils/authtoken";
-import redisClient from "../config/redis.config";
+import { generateSessionId, signAccessToken, signRefreshToken, verifyToken, getCookieOptions } from "../utils/authtoken";
+import redisClient from "../configs/redis.config";
 import { userSessionKey } from "../utils/rediskeys";
-import { getCookieOptions } from "../utils/authtoken";
 
 class AuthController{
 
@@ -21,11 +20,6 @@ class AuthController{
     };
 
     revokeSessionByUserId = async(userId) => {
-        const existingSid = await redisClient.get(userSessionKey(userId));
-        if (existingSid) {
-
-            await redisClient.del(csrfKey(existingSid));
-        }
         await redisClient.del(userSessionKey(userId));
     }
 
@@ -47,12 +41,12 @@ class AuthController{
         }
 
         // Single-session semantics: new login revokes old session immediately.
-        await revokeSessionByUserId(user._id.toString());
+        await this.revokeSessionByUserId(user._id.toString());
 
         const sid = generateSessionId();
 
         await redisClient.set(userSessionKey(user._id.toString()), sid, {
-            EX: SESSION_TTL_SECONDS,
+            EX: this.SESSION_TTL_SECONDS,
         });
 
         const accessToken = signAccessToken({
@@ -101,49 +95,6 @@ class AuthController{
         return new ApiResponse(200, user, "User Fetched")
     })
 
-    refresh = asyncHandler(async(req,res)=>{
-
-        const refreshToken = req.cookies?.refresh_token;
-        if (!refreshToken) {
-            this.cleanUpCookie()
-            throw new ApiError(400, "Refresh Token is Missing.")
-        }
-
-        const decoded = verifyToken(refreshToken);
-        if (decoded.type !== "refresh") {
-            throw new ApiError(400, "Invalid Refresh Token.")
-        }
-
-        const userId = decoded.sub;
-        const sid = decoded.sid;
-
-        // Verify session is still active in Redis
-        const activeSid = await redisClient.get(userSessionKey(userId));
-        if (!activeSid || activeSid !== sid) {
-            this.cleanUpCookie(res);
-            throw new ApiError(401, "Invalid session.");
-        }
-
-        const user = await userModel.findById(userId);
-        if (!user) {
-            this.cleanUpCookie(res);
-            throw new ApiError(404, "Invalid User or not found User");
-        }
-
-        const newAccess = signAccessToken({
-            userId: user._id.toString(),
-            sid,
-            role: user.role,
-            username: user.username,
-            email: user.email,
-        });
-
-        res.cookie("access_token", newAccess, getCookieOptions({ httpOnly: true }));
-
-        return new ApiResponse(200, "Refresh Token Regenerated")
-        
-    })
-
     logout = asyncHandler(async(req, res)=>{
 
         const accessToken = req.cookies?.access_token
@@ -160,12 +111,12 @@ class AuthController{
         }
 
         if (userId) {
-            await revokeSessionByUserId(String(userId));
+            await this.revokeSessionByUserId(String(userId));
         }
 
-        this.cleanUpCookie()
+        this.cleanUpCookie(res);
 
-        return new ApiResponse(200, null, "Logout Successfully.")
+        return new ApiResponse(200, null, "Logout Successfully.");
     })
 
 }
