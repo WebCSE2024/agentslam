@@ -6,7 +6,7 @@ import rateLimiter from "../middlewares/ratelimit.middleware.js";
 // 60 requests per minute per user for general user endpoints
 const userLimiter = rateLimiter.byUser({
     windowMs: 60 * 1000,
-    max: 60,
+    max: 10,
     keyPrefix: "user",
 });
 
@@ -30,14 +30,20 @@ class UserRouter {
         // GET /api/user  — all users filtered by role (admin)
         this.router.get("/", authMiddleware, userLimiter, userController.getAllUsers);
 
-        // GET /api/user/status  — users filtered by status (admin)
-        this.router.get("/status", authMiddleware, userLimiter, userController.getUsersByStatus);
+        // GET /api/user/filter  — users filtered by status (admin)
+        this.router.get("/filter", authMiddleware, userLimiter, userController.getUsersByFilter);
+
+        // GET /api/user/info  — get user by username
+        this.router.get("/info", authMiddleware, userLimiter, userController.getUserInfo);
 
         // GET /api/user/info/:id  — get user by id or username
         this.router.get("/info/:id", authMiddleware, userLimiter, userController.getUserInfo);
 
         // POST /api/user/reset-password  — reset a user's password (admin)
         this.router.post("/reset-password", authMiddleware, resetPasswordLimiter, userController.resetPassword);
+
+        // POST /api/user/deactivate  — change user status to DISABLED (admin)
+        this.router.post("/deactivate", authMiddleware, userLimiter, userController.deactivateUserManually);
     }
 }
 

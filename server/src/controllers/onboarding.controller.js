@@ -7,12 +7,13 @@ import { USER_ROLE } from "../utils/enum.js";
 import bcrypt from 'bcryptjs';
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generatePassword } from "../utils/helpers.js";
+import { signSandboxToken } from "../utils/authtoken.js";
 
 class OnboardingController{
 
     createUserFromPayload = async ({ role, name, email, admissionNumber }) => {
 
-        if (!role || !USER_ROLE.includes(role)) {
+        if (!role || !Object.values(USER_ROLE).includes(role)) {
             throw new ApiError(400, "Invalid role");
         }
         if (!email || !admissionNumber) {
@@ -43,7 +44,6 @@ class OnboardingController{
                 name: String(name || "").trim(),
                 email: normalizedEmail,
                 admissionNumber: normalizedAdmission,
-                username,
                 password: hashedPassword,
                 tournamentPoints: 0,
             });
@@ -51,12 +51,19 @@ class OnboardingController{
             throw new ApiError(500, "Failed to create user");
         }
 
+        const sandboxToken = signSandboxToken({ userId: user._id });
+        const WS_SANDBOX_BASE = process.env.WS_SANDBOX_URL || "ws://localhost:8000/ws-sandbox";
+        const sandboxUrl = `${WS_SANDBOX_BASE}?payload=${sandboxToken}`;
+        
         const tpl = onboardingEmailTemplate({
             name: user.name,
             email: user.email,
             admissionNumber: user.admissionNumber,
             role: user.role,
-        });
+            password: plainPassword,
+            sandboxUrl: sandboxUrl, // will be set below after key is stored
+        })
+
 
         try {
             await sendEmail({
@@ -122,7 +129,7 @@ class OnboardingController{
             created: results.length,
             failed,
             users: results,
-        }), "Users batch processed successfully";
+        }, "Users batch processed successfully");
     })
  
 }

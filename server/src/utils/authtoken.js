@@ -28,6 +28,27 @@ export function signRefreshToken({ userId, sid }) {
   );
 }
 
+/**
+ * Short-lived passkey token embedded in the WS login link.
+ * Contains the same identity payload as an access token but is typed
+ * "passkey" so it can never be used where an access / refresh token is expected.
+ */
+export function signPasskeyToken({ userId, sid, role, username, email }) {
+  return jwt.sign(
+    { sub: userId, sid, role, username, email, type: "passkey" },
+    process.env.JWT_SECRET,
+    { expiresIn: "24h" }
+  );
+}
+
+export function signSandboxToken({userId}){
+  return jwt.sign(
+    { sub: userId, type: "sandbox" },
+    process.env.JWT_SECRET,
+    { expiresIn: "45d" }
+  );
+} 
+
 export function verifyToken(token) {
   return jwt.verify(token, process.env.JWT_SECRET);
 }

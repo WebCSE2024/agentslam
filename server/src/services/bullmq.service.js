@@ -16,13 +16,15 @@ class BullMQService {
             switch(job.name){
                 case 'process-match-result':
                     const { matchId } = job.data;
-
-                    console.log(`Processing result for match ${matchId} with result:`, job.data.result);
+                    console.log(`Processing result for match ${matchId}`);
                     try {
+                        // updateMatchResult is the single source of truth:
+                        // saves result, populates, clears cache, broadcasts socket,
+                        // disables loser, invalidates session, updates leaderboard, sends emails
                         await matchController.updateMatchResult(matchId, job.data.result);
-                        console.log(`Match ${matchId} result updated successfully.`);
+                        console.log(`Match ${matchId} fully processed.`);
                     } catch (error) {
-                        console.error(`Error updating match ${matchId} result:`, error);
+                        console.error(`Error processing match ${matchId} result:`, error);
                     }
                     break;
                 default:

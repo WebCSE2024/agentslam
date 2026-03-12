@@ -7,6 +7,7 @@ import { USER_ROLE, USER_STATUS } from "../utils/enum.js";
 import bcrypt from 'bcryptjs';
 import { generatePassword } from "../utils/helpers.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 
 class UserController{
 
@@ -51,8 +52,9 @@ class UserController{
         try {
             await sendEmail({
                 to: user.email,
-                subject: "Your password has been reset",
-                html: tpl,
+                subject: tpl.subject,
+                text: tpl.text,
+                html: tpl.html,
             });
         } catch (error) {
             throw new ApiError(500, "Failed to send email");
@@ -67,9 +69,8 @@ class UserController{
             throw new ApiError(403, "Forbidden");
         }
 
-        const {role} = req.body || USER_ROLE.USER;
-
-        const users = await userModel.find({ role }).select("-password").lean();
+        const role = req.body?.role || USER_ROLE.USER;
+        const users = await userModel.find({role}).select("-password").lean();
 
         return new ApiResponse(200, users, "Users fetched successfully");
     })
@@ -88,10 +89,21 @@ class UserController{
 
     getUserInfo = asyncHandler(async (req, res) => {
 
-        const userId = req.params.id;
-        const username = req.body.username;
+        const userId = req.params?.id || undefined;
+        const username = req.body?.name || undefined;
 
-        const user = await userModel.findOne({ $or: [{ _id: userId }, { username }] }).select("-password").lean();
+        if(!userId && !username){
+            throw new ApiError(400, "User ID or username is required");
+        }
+
+        const conditions = [];
+        if(userId){
+            conditions.push({ _id: userId });
+        }
+        if(username){
+            conditions.push({ name: username });
+        }
+        const user = await userModel.findOne({ $or: conditions }).select("-password").lean();
 
         if (!user) {
             throw new ApiError(404, "User not found");
@@ -100,17 +112,62 @@ class UserController{
         return new ApiResponse(200, user, "User info fetched successfully");
     })
 
-    getUsersByStatus = asyncHandler(async (req, res) => {
+    getUsersByFilter = asyncHandler(async (req, res) => {
 
         if(!req.user || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
-        const { status } = req.body || USER_STATUS.ACTIVE;
-
-        const users = await userModel.find({ status }).select("-password").lean();
+        const status = req.body?.status || USER_STATUS.ACTIVE;
+        const role = req.body?.role || USER_ROLE.USER;
+        const users = await userModel.find({ status, role }).select("-password").lean();
 
         return new ApiResponse(200, users, "Users fetched successfully");
     })
+
+    deactivateUser = async(input)=>{
+        
+        const query = {
+            $or: [
+                { name: input },
+                ...(mongoose.Types.ObjectId.isValid(input) ? [{ _id: input }] : [])
+            ]
+        };
+
+        const result = await userModel.updateOne(
+            query,
+            { $set: { status: USER_STATUS.DISABLED } }
+        );
+            return result.modifiedCount > 0;
+    }
+
+    deactivateUserManually = asyncHandler(async (req, res) => {
+        if(!req.user || req.user.role !== USER_ROLE.ADMIN){
+            throw new ApiError(403, "Forbidden");
+        }
+
+        const { input } = req.body;
+
+        if (!input) {
+            throw new ApiError(400, "User ID or username is required");
+        }
+
+        const success = await this.deactivateUser(input);
+
+        if (!success) {
+            throw new ApiError(404, "Error deactivating user.");
+        }
+
+        return new ApiResponse(200, null, "User deactivated successfully");
+    })
+
+    resetUserDB = async() => {
+        try {
+            await userModel.deleteMany({});
+            console.log("User collection cleared successfully.");
+        } catch (error) {
+            console.error("Error clearing user collection:", error);
+        }
+    }
 }
 
 export default new UserController();

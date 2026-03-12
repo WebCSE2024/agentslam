@@ -52,4 +52,5 @@ export const SOCKET_MESSAGE_TYPE = {
     MATCH_PAUSED: "match-paused",
     MATCH_RESUMED: "match-resumed",
     DEBATE_MESSAGE: "debate-message",
+    SANDBOX_MESSAGE: "sandbox-message",
 }

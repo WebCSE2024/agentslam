@@ -11,13 +11,13 @@ class TopicController{
             throw new ApiError(403, "Forbidden");
             }
 
-        const { topicName, description, round, weights } = req.body;
-        if(!topicName || !round || !weights){
+        const { title, description, round, weights } = req.body;
+        if(!title || !round || !weights){
             throw new ApiError(400, "Missing required fields");
         }
 
         const topic = await topicModel.create({
-            title: topicName,
+            title: title,
             description: description || "",
             round,
             weights
@@ -34,34 +34,20 @@ class TopicController{
 
         const topics = Array.isArray(req.body?.topics) ? req.body.topics : [];
 
-        if (!topics.length) {
+        if (!topics || !topics.length) {
             throw new ApiError(400, "Topic Array is Required")
         }
 
-        const success = [];
-        const failedEntries = [];
-        let failed = 0;
+        const insertedTopics = await topicModel.insertMany(topics.map(t => ({
+            title: t.title,
+            description: t.description || "",
+            round: t.round,
+            weights: t.weights
+        })));
 
-        for (const entry of topics) {
-            const { topicName, description, round, weights } = entry;
-            if(!topicName || !round || !weights){
-                failed += 1;
-                continue;
-            }
-            try {
-                const topic = await topicModel.create({
-                    title: topicName,
-                    description: description || "",
-                    round,
-                    weights
-                });
-                success.push(topic);
-            } catch (err) {
-                failed += 1;
-                failedEntries.push({ entry, error: err.message });
-            }
-        }
-        return new ApiResponse(201, { success, failedEntries }, "Topics created successfully");
+        const insertedEntries = insertedTopics.length;
+        const failedEntries = topics.length - insertedEntries;
+        return new ApiResponse(201, { insertedEntries, failedEntries }, "Topics created successfully");
     })
 
     getRoundTopics = asyncHandler(async(req, res) => {
@@ -72,6 +58,17 @@ class TopicController{
             throw new ApiError(404, "No topics found for this round");
         }
         return new ApiResponse(200, topics, "Topics retrieved successfully");
+    })
+
+    getTopicInfo = asyncHandler(async(req, res) => {
+
+        const { topicId } = req.params;
+        const topic = await topicModel.findById(topicId).populate('round').lean().select("-__v");
+
+        if(!topic){
+            throw new ApiError(404, "Topic not found");
+        }
+        return new ApiResponse(200, topic, "Topic retrieved successfully");
     })
 
     updateTopic = asyncHandler(async(req, res) => {
@@ -124,7 +121,7 @@ class TopicController{
             console.error("Error resetting topic database:", error);
         }
         return;
-     }
+    }
 }
 
 export default new TopicController();

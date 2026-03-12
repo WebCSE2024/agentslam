@@ -2,8 +2,9 @@ import roundModel from "../models/round.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/apierror.js";
 import ApiResponse from "../utils/apiresponse.js";
-import { ROUND_STATUS, } from "../utils/enum.js";
+import { ROUND_STATUS, USER_ROLE, USER_STATUS, } from "../utils/enum.js";
 import redisClient from "../configs/redis.config.js";
+import userModel from "../models/user.model.js";
 
 class RoundController{
 
@@ -12,14 +13,26 @@ class RoundController{
         const leaderBoardPresent = await redisClient.exists("leaderboard");
         if(!leaderBoardPresent){
 
-            const teams = await userModel.find({}).lean().select("_id username")
+            const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name").sort({ tournamentPoints: -1 });
             for(const team of teams){
-                await redisClient.zadd("leaderboard", 0, `${team._id}:${team.username}`)
+                await redisClient.zadd("leaderboard", 0, `${team._id}:${team.name}`)
             }
         }
 
         return;
     }
+
+    refreshLeaderBoard = asyncHandler(async(req,res)=>{
+
+        if(!req.user || req.user.role !== USER_ROLE.ADMIN){
+            throw new ApiError(403, "Forbidden");
+        }
+        
+        await redisClient.del("leaderboard");
+        await this.loadLeaderBoard();
+
+        return new ApiResponse(200, null, "Leaderboard refreshed successfully");
+    })
 
     createRound = asyncHandler(async(req, res) => {
 
@@ -51,13 +64,34 @@ class RoundController{
         const { roundId } = req.params;
         const { roundName } = req.body;
 
-        const round = await roundModel.findByIdAndUpdate(roundId, { roundName }, { new: true });
+        const round = await roundModel.findByIdAndUpdate(roundId, { $set: { roundName } }, { new: true });
 
         if(!round){
             throw new ApiError(404, "Round not found");
         }
 
         return new ApiResponse(200, round, "Round updated successfully")
+    })
+
+    updateRoundStatus = asyncHandler(async(req, res) => {
+        if(!req.user.role || req.user.role !== "admin"){
+            throw new ApiError(403, "Forbidden");
+        }
+        
+        const { roundId } = req.params;
+        const { status } = req.body;
+
+        if(!Object.values(ROUND_STATUS).includes(status)){
+            throw new ApiError(400, "Invalid round status");
+        }
+
+        const round = await roundModel.findByIdAndUpdate(roundId, { $set: { roundStatus: status } }, { new: true });
+
+        if(!round){
+            throw new ApiError(404, "Round not found");
+        }
+
+        return new ApiResponse(200, round, "Round status updated successfully")
     })
 
     getRounds = asyncHandler(async(req, res) => {
@@ -69,18 +103,22 @@ class RoundController{
 
     getRound = asyncHandler(async(req, res) => {
 
-        const { roundId } = req.params;
-        const {roundName} = req.body;
+        const roundId = req.params?.roundId;
+        const roundName = req.body?.roundName;
 
-        if(!roundId || !roundName){
-            throw new ApiError(400, "Round ID or name or status required");
+        const conditions = [];
+
+        if (roundId) conditions.push({ _id: roundId });
+        if (roundName) conditions.push({ roundName });
+
+        if (conditions.length === 0) {
+            throw new ApiError(400, "roundId or roundName required");
         }
-        const round = await roundModel.find({
-            $or:[
-                { _id: roundId },
-                { roundName: roundName },
-            ]
-        }).lean().select("-__v");
+
+        const round = await roundModel
+            .findOne({ $or: conditions })
+            .select("-__v")
+            .lean();
             
         if(!round){
             throw new ApiError(404, "Round not found");
@@ -90,12 +128,40 @@ class RoundController{
     })
 
     getLeaderBoard = asyncHandler(async(req, res) => {
-        const leaderBoard = await redisClient.zrevrange("leaderboard", 0, -1);
+        const data = await redisClient.zrevrange("leaderboard", 0, -1, "WITHSCORES");
 
+        const result = [];
+
+        for (let i = 0; i < data.length; i += 2) {
+            const [id, name] = data[i].split(":");
+            const points = parseInt(data[i + 1], 10);
+            result.push({ name, points });
+        }
+        const leaderBoard = result.sort((a, b) => b.points - a.points);
         if(!leaderBoard || !leaderBoard.length){
             throw new ApiError(404, "Leaderboard not found");
         }
         return new ApiResponse(200, leaderBoard, "Leaderboard fetched successfully")
+    })
+
+    deleteRound = asyncHandler(async(req, res) => {
+        if(!req.user.role || req.user.role !== "admin"){
+            throw new ApiError(403, "Forbidden");
+        }
+        
+        const roundId = req.params?.roundId || req.body?.roundId || undefined;
+
+        if(!roundId){
+            throw new ApiError(400, "Round ID is required");
+        }
+
+        const round = await roundModel.findByIdAndDelete(roundId);
+
+        if(!round){
+            throw new ApiError(404, "Round not found");
+        }
+
+        return new ApiResponse(200, null, "Round deleted successfully")
     })
 
     resetRoundDB = async() => {

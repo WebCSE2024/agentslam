@@ -17,8 +17,8 @@ class RoundRouter {
     }
 
     initRoutes() {
-        // POST /api/round  — create a round (admin)
-        this.router.post("/", authMiddleware, roundLimiter, roundController.createRound);
+        // POST /api/round/create  — create a round (admin)
+        this.router.post("/create", authMiddleware, roundLimiter, roundController.createRound);
 
         // GET /api/round  — list all rounds
         this.router.get("/", authMiddleware, roundLimiter, roundController.getRounds);
@@ -27,11 +27,23 @@ class RoundRouter {
         // Must be defined before /:roundId to avoid route conflict
         this.router.get("/leaderboard", authMiddleware, roundLimiter, roundController.getLeaderBoard);
 
-        // GET /api/round/:roundId  — get round by id or name
-        this.router.get("/:roundId", authMiddleware, roundLimiter, roundController.getRound);
+        //POST /api/round/refresh-leaderboard  — refresh leaderboard (admin)
+        this.router.post("/refresh-leaderboard", authMiddleware, roundLimiter, roundController.refreshLeaderBoard);
 
-        // PUT /api/round/:roundId  — update round name (admin)
-        this.router.put("/:roundId", authMiddleware, roundLimiter, roundController.updateRound);
+        //GET /api/round/info  — get round by id or name
+        this.router.get("/info", authMiddleware, roundLimiter, roundController.getRound);
+
+        // GET /api/round/info/:roundId  — get round by id or name
+        this.router.get("/info/:roundId", authMiddleware, roundLimiter, roundController.getRound);
+
+        // POST /api/round/update/:roundId  — update round name (admin)
+        this.router.post("/update/:roundId", authMiddleware, roundLimiter, roundController.updateRound);
+
+        //DELETE /api/round/delete/:roundId  — delete a round (admin)
+        this.router.delete("/delete/:roundId", authMiddleware, roundLimiter, roundController.deleteRound);
+
+        // POST /api/round/update-status/:roundId  — update round status (admin)
+        this.router.post("/update-status/:roundId", authMiddleware, roundLimiter, roundController.updateRoundStatus);
     }
 }
 

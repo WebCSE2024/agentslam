@@ -23,19 +23,19 @@ class MatchRouter {
         this.router.post("/generate", authMiddleware, matchLimiter, matchController.generateMatches);
 
         // POST /api/match/:matchId/activate  — load match into Redis, open socket room (admin)
-        this.router.post("/:matchId/activate", authMiddleware, matchLimiter, matchController.activateMatch);
+        this.router.post("/activate/:matchId", authMiddleware, matchLimiter, matchController.activateMatch);
 
         // POST /api/match/:matchId/start  — start the timer and match (admin)
-        this.router.post("/:matchId/start", authMiddleware, matchLimiter, matchController.startMatch);
+        this.router.post("/start/:matchId", authMiddleware, matchLimiter, matchController.startMatch);
 
         // POST /api/match/:matchId/pause  — pause an ongoing match (admin)
-        this.router.post("/:matchId/pause", authMiddleware, matchLimiter, matchController.pauseMatch);
+        this.router.post("/pause/:matchId", authMiddleware, matchLimiter, matchController.pauseMatch);
 
         // POST /api/match/:matchId/resume  — resume a paused match (admin)
-        this.router.post("/:matchId/resume", authMiddleware, matchLimiter, matchController.resumeMatch);
+        this.router.post("/resume/:matchId", authMiddleware, matchLimiter, matchController.resumeMatch);
 
-        // PUT /api/match/:matchId/result  — manually set scores and winner (admin)
-        this.router.put("/:matchId/result", authMiddleware, matchLimiter, matchController.updateManualMatchResult);
+        // POST /api/match/:matchId/result  — manually set scores and winner (admin)
+        this.router.post("/result/:matchId", authMiddleware, matchLimiter, matchController.updateManualMatchResult);
 
         // --- Read operations ---
 
