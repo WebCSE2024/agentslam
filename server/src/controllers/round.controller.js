@@ -13,9 +13,9 @@ class RoundController{
         const leaderBoardPresent = await redisClient.exists("leaderboard");
         if(!leaderBoardPresent){
 
-            const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name").sort({ tournamentPoints: -1 });
+            const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name tournamentPoints").sort({ tournamentPoints: -1 });
             for(const team of teams){
-                await redisClient.zadd("leaderboard", 0, `${team._id}:${team.name}`)
+                await redisClient.zadd("leaderboard", Number(team.tournamentPoints) || 0, `${team._id}:${team.name}`)
             }
         }
 
@@ -40,15 +40,19 @@ class RoundController{
             throw new ApiError(403, "Forbidden");
         }
 
-        const { roundName } = req.body;
+        const { roundName, roundStatus } = req.body;
 
         if(!roundName){
             throw new ApiError(400, "Round name is required");
         }
+
+        if (roundStatus && !Object.values(ROUND_STATUS).includes(roundStatus)) {
+            throw new ApiError(400, "Invalid round status");
+        }
         
         const round = await roundModel.create({
             roundName,
-            roundStatus: ROUND_STATUS.CREATED
+            roundStatus: roundStatus || ROUND_STATUS.CREATED
         });
 
         this.loadLeaderBoard();
@@ -63,6 +67,10 @@ class RoundController{
         
         const { roundId } = req.params;
         const { roundName } = req.body;
+
+        if(!roundName){
+            throw new ApiError(400, "Round name is required");
+        }
 
         const round = await roundModel.findByIdAndUpdate(roundId, { $set: { roundName } }, { new: true });
 
@@ -99,6 +107,26 @@ class RoundController{
         const rounds = await roundModel.find().lean().select("-__v").sort({ createdAt: -1 });
 
         return new ApiResponse(200, rounds, "Rounds fetched successfully")
+    })
+
+    getRoundSummary = asyncHandler(async(req, res) => {
+
+        const [completedRounds, ongoingRound] = await Promise.all([
+            roundModel.countDocuments({ roundStatus: ROUND_STATUS.COMPLETED }),
+            roundModel.findOne({ roundStatus: ROUND_STATUS.ONGOING })
+                .select("roundName")
+                .sort({ updatedAt: -1 })
+                .lean(),
+        ]);
+
+        return new ApiResponse(
+            200,
+            {
+                completedRounds,
+                ongoingRoundName: ongoingRound?.roundName || null,
+            },
+            "Round summary fetched successfully"
+        )
     })
 
     getRound = asyncHandler(async(req, res) => {
@@ -169,10 +197,11 @@ class RoundController{
         try {
             await roundModel.deleteMany({});
             console.log("Round database reset successfully");
+            return true;
         } catch (error) {
             console.error("Error resetting round database:", error);
+            return false;
         }
-        return;
     }
 }
 

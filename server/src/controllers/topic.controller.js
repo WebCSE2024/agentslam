@@ -42,7 +42,7 @@ class TopicController{
             title: t.title,
             description: t.description || "",
             round: t.round,
-            weights: t.weights
+            weights: t.weights   
         })));
 
         const insertedEntries = insertedTopics.length;
@@ -77,15 +77,16 @@ class TopicController{
         }
 
         const { topicId } = req.params;
-        const { topicName, description, weights, round } = req.body;
+        const { topicName, title, description, weights, round } = req.body;
+        const nextTitle = title || topicName;
 
-        if(!topicName && !description && !weights && !round){
+        if(!nextTitle && !description && !weights && !round){
             throw new ApiError(400, "At least one field is required for update");
         }
 
         const topic = await topicModel.findByIdAndUpdate(
             topicId,
-            { $set: { topicName, description, weights, round } },
+            { $set: { title: nextTitle, description, weights, round } },
             { new: true }
         );
 
@@ -117,10 +118,11 @@ class TopicController{
         try {
             await topicModel.deleteMany({});
             console.log("Topic database reset successfully");
+            return true;
         } catch (error) {
             console.error("Error resetting topic database:", error);
+            return false;
         }
-        return;
     }
 }
 

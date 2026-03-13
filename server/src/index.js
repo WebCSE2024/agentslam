@@ -14,6 +14,7 @@ import userRouter from "./routes/user.route.js";
 import roundRouter from "./routes/round.route.js";
 import topicRouter from "./routes/topic.route.js";
 import matchRouter from "./routes/match.route.js";
+import resetRouter from "./routes/reset.route.js";
 
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 
@@ -44,6 +45,7 @@ app.use("/api/user",        userRouter);
 app.use("/api/round",       roundRouter);
 app.use("/api/topic",       topicRouter);
 app.use("/api/match",       matchRouter);
+app.use("/api/reset",       resetRouter); 
 
 //  404 + Global error handler (must be last) 
 app.use(notFoundHandler);

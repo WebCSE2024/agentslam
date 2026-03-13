@@ -23,13 +23,16 @@ class RoundRouter {
         // GET /api/round  — list all rounds
         this.router.get("/", authMiddleware, roundLimiter, roundController.getRounds);
 
+        // GET /api/round/summary  — completed rounds count + current ongoing round name
+        this.router.get("/summary", authMiddleware, roundLimiter, roundController.getRoundSummary);
+
         // GET /api/round/leaderboard  — fetch leaderboard
         // Must be defined before /:roundId to avoid route conflict
         this.router.get("/leaderboard", authMiddleware, roundLimiter, roundController.getLeaderBoard);
 
         //POST /api/round/refresh-leaderboard  — refresh leaderboard (admin)
         this.router.post("/refresh-leaderboard", authMiddleware, roundLimiter, roundController.refreshLeaderBoard);
-
+        
         //GET /api/round/info  — get round by id or name
         this.router.get("/info", authMiddleware, roundLimiter, roundController.getRound);
 

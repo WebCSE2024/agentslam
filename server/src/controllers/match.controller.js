@@ -13,7 +13,7 @@ import { sendEmail } from "../services/email.service.js";
 import { matchResultEmailTemplate } from "../templates/matchResultEmail.js";
 import { matchUpdateEmailTemplate } from "../templates/matchUpdateEmail.js";
 import { signPasskeyToken } from "../utils/authtoken.js";
-import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS, SOCKET_MESSAGE_TYPE, USER_STATUS } from "../utils/enum.js";
+import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS } from "../utils/enum.js";
 
 export const MATCH_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 class MatchController{
@@ -118,7 +118,6 @@ class MatchController{
         if(!matchId){
             throw new ApiError(400, "Match ID is required to start the match");
         }
-        
         const match = await matchModel.findById(matchId)
                     .populate("opponents.team1.user", "_id name email")
                     .populate("opponents.team2.user", "_id name email")
@@ -130,8 +129,9 @@ class MatchController{
         }
 
         match.matchStatus = MATCH_STATUS.ACTIVE;
+        match.finishTime = 0;
+        match.remainingTime = 0;
         await match.save();
-
         await redisClient.hset(`match:${matchId}`, {
             'team1': `${match.opponents.team1.user._id.toString()}:${match.opponents.team1.user.name}`,
             'team2': `${match.opponents.team2.user._id.toString()}:${match.opponents.team2.user.name}`,
@@ -144,16 +144,14 @@ class MatchController{
             'turn':null,
             'status': match.matchStatus,
         })
-
         socketService.registerMatch(matchId);
-
+        
         // Generate short-lived passkey tokens for each team member and email the WS link
         const WS_BASE = process.env.WS_URL || "ws://localhost:8000/ws";
         const team1User = match.opponents.team1.user;
         const team2User = match.opponents.team2.user;
         const team1Name = team1User.name || team1User.email;
         const team2Name = team2User.name || team2User.email;
-
         const buildPasskey = async (user) => {
             const activeSid = await redisClient.get(userSessionKey(user._id.toString()));
             return signPasskeyToken({
@@ -164,7 +162,6 @@ class MatchController{
                 email:    user.email,
             });
         };
-
         const passkey1 = await buildPasskey(team1User);
         const passkey2 = await buildPasskey(team2User);
 
@@ -179,7 +176,6 @@ class MatchController{
             .catch(err => console.error(`Failed to send match update email to team1 (${team1User.email}):`, err.message));
         await sendEmail({ to: team2User.email, subject: tpl2.subject, html: tpl2.html, text: tpl2.text })
             .catch(err => console.error(`Failed to send match update email to team2 (${team2User.email}):`, err.message));
-
         return new ApiResponse(200, match, "Match activated successfully")
     })
 
@@ -202,9 +198,11 @@ class MatchController{
 
         match.matchStatus = MATCH_STATUS.STARTED;
         const turn = Math.random() < 0.5 ? 'team1' : 'team2';
-        await match.save();
         const finishTime = Date.now() + MATCH_DURATION
-        const matchState = await redisClient.hset(`match:${matchId}`, {
+        match.finishTime = finishTime;
+        match.remainingTime = 0;
+        await match.save();
+        await redisClient.hset(`match:${matchId}`, {
             'finishTime': finishTime,
             'status': match.matchStatus,
             'turn': turn, // Randomly select which team starts
@@ -238,15 +236,18 @@ class MatchController{
         }
 
         // Snapshot remaining time before pausing
-        const finishTime = await redisClient.hget(`match:${matchId}`, 'finishTime');
-        const timeRemaining = Math.max(0, parseInt(finishTime) - Date.now());
+        const finishTimeRaw = await redisClient.hget(`match:${matchId}`, 'finishTime');
+        const persistedFinishTime = Number(finishTimeRaw || match.finishTime || 0);
+        const timeRemaining = Math.max(0, persistedFinishTime - Date.now());
 
         match.matchStatus = MATCH_STATUS.PAUSED;
+        match.finishTime = 0;
+        match.remainingTime = timeRemaining;
         await match.save();
 
         await redisClient.hset(`match:${matchId}`, {
             'status': match.matchStatus,
-            'timeRemaining': timeRemaining, // ms left when paused
+            'remainingTime': timeRemaining, // ms left when paused
             'finishTime': 0,               // invalidate — no longer ticking
         });
 
@@ -278,24 +279,28 @@ class MatchController{
         }
 
         // Restore finish time from saved remaining time
-        const storedRemaining = await redisClient.hget(`match:${matchId}`, 'timeRemaining');
-        if(!storedRemaining || parseInt(storedRemaining) <= 0){
+        const storedRemainingRaw = await redisClient.hget(`match:${matchId}`, 'remainingTime');
+        const storedRemaining = Number(storedRemainingRaw || match.remainingTime || 0);
+
+        if(!storedRemaining || storedRemaining <= 0){
             throw new ApiError(400, "No valid remaining time found — cannot resume match");
         }
 
-        const newFinishTime = Date.now() + parseInt(storedRemaining);
+        const newFinishTime = Date.now() + storedRemaining;
 
         match.matchStatus = MATCH_STATUS.STARTED;
+        match.finishTime = newFinishTime;
+        match.remainingTime = 0;
         await match.save();
 
-        const matchState = await redisClient.hset(`match:${matchId}`, {
+        await redisClient.hset(`match:${matchId}`, {
             'status': match.matchStatus,
             'finishTime': newFinishTime, // new absolute end time
-            'timeRemaining': 0,          // clear snapshot — match is live again
+            'remainingTime': 0,          // clear snapshot — match is live again
         });
 
-        await redisClient.hdel(`match:${matchId}`, 'timeRemaining'); // cleanup
-        socketService.resumeMatch(matchId, newFinishTime, matchState.turn, storedRemaining);
+        const currentTurn = await redisClient.hget(`match:${matchId}`, 'turn');
+        socketService.resumeMatch(matchId, newFinishTime, currentTurn || 'team1', storedRemaining);
 
         return new ApiResponse(200, { finishTime: newFinishTime }, "Match resumed successfully");
     })
@@ -310,14 +315,35 @@ class MatchController{
         const match = await matchModel.findById(matchId).populate("opponents.team1.user", "_id name email")
         .populate("opponents.team2.user", "_id name email")
         .populate("topic", "title description")
-        .populate("round", "name roundStatus")
+        .populate("round", "roundName roundStatus")
         .populate("winner", "_id name email");
 
         if(!match){
             throw new ApiError(404, "Match not found");
         }
 
+        if(match.matchStatus === MATCH_STATUS.PENDING){
+            throw new ApiError(400, "Match is not yet active");
+        }
         return new ApiResponse(200, match, "Match info retrieved successfully")
+    })
+
+    getAllMatchesAdmin = asyncHandler(async(req, res) => {
+        
+        if(!req.user.role || req.user.role !== "admin"){
+            throw new ApiError(403, "Forbidden");
+        }
+        const matches = await matchModel.find({})
+        .populate("opponents.team1.user", "_id name email")
+        .populate("opponents.team2.user", "_id name email")
+        .populate("topic", "title description")
+        .populate("round", "_id roundName roundStatus createdAt")
+        .populate("winner", "_id name email");
+        if(!matches || !matches.length){
+            throw new ApiError(404, "No matches found");
+        }
+
+        return new ApiResponse(200, matches, "All matches retrieved successfully")
     })
 
     getMatchByRound = asyncHandler(async(req, res) => {
@@ -328,10 +354,13 @@ class MatchController{
             throw new ApiError(400, "Round ID is required to get matches");
         }
 
+        if(req.user.role !== "admin"){
+            throw new ApiError(403, "Forbidden");
+        }
         const matches = await matchModel.find({round: roundId}).populate("opponents.team1.user", "_id name email")
         .populate("opponents.team2.user", "_id name email")
         .populate("topic", "title description")
-        .populate("round", "name roundStatus")
+        .populate("round", "roundName roundStatus")
         .populate("winner", "_id name email");
         if(!matches || !matches.length){
             throw new ApiError(404, "No matches found for the given round");
@@ -341,11 +370,12 @@ class MatchController{
     })
 
     getAllMatches = asyncHandler(async(req, res) => {
-        const matches = await matchModel.find({}).populate("opponents.team1.user", "_id name email")
+        const matches = await matchModel.find({})
+        .select("opponents round matchStatus scores winner createdAt")
+        .populate("opponents.team1.user", "_id name email")
         .populate("opponents.team2.user", "_id name email")
-        .populate("topic", "title description")
-        .populate("round", "name roundStatus")
-        .populate("winner", "_id name email").sort({createdAt: 1});
+        .populate("round", "_id roundName roundStatus createdAt")
+        .populate("winner", "_id name email");
         if(!matches || !matches.length){
             throw new ApiError(404, "No matches found");
         }
@@ -364,6 +394,8 @@ class MatchController{
         match.scores = result.scores;
         match.winner = result.winner;
         match.matchStatus = MATCH_STATUS.COMPLETED;
+        match.finishTime = 0;
+        match.remainingTime = 0;
         await match.save();
 
         // Populate once — used by all downstream steps
@@ -375,9 +407,6 @@ class MatchController{
 
         // Clear Redis match state
         await redisClient.del(`match:${matchId}`);
-
-        // Notify socket clients
-        socketService.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `The match has ended!`, result, from: 'system' });
 
         // Derive winner / loser from populated data
         const team1User  = populated.opponents.team1.user;
@@ -458,10 +487,12 @@ class MatchController{
         try {
             await matchModel.deleteMany({});
             console.log("Match database reset successfully");
+            return true;
         } catch (error) {
             console.error("Error resetting match database:", error);
+            return false;
         }
-        return;
+        
     }
 }
 

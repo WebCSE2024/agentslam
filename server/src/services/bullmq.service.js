@@ -14,7 +14,7 @@ class BullMQService {
         this.resultWorker = new Worker('result-req', async (job)=>{   //this expects job.data as --->{matchId, result:{scores:{team1, team2}, winner}}
 
             switch(job.name){
-                case 'process-match-result':
+                case 'match-result':
                     const { matchId } = job.data;
                     console.log(`Processing result for match ${matchId}`);
                     try {
@@ -69,7 +69,7 @@ class BullMQService {
             matchId,
             conversations: match.conversations
         };
-        await this.resultqueue.add("process-match-result", data);
+        await this.resultqueue.add("match-result-request", data);
     }
 
     resetQueue = async () => {

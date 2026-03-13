@@ -45,6 +45,14 @@ const matchSchema = new mongoose.Schema({
         default: MATCH_STATUS.PENDING,
         required: true,
     },
+    finishTime: {
+        type: Number,
+        default: 0,
+    },
+    remainingTime: {
+        type: Number,
+        default: 0,
+    },
     scores: {
         team1: { type: Number, default: 0 },
         team2: { type: Number, default: 0 },

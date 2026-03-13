@@ -10,9 +10,11 @@ export function refreshJtiKey(sessionId) {
 
 export async function redisCleanUp(){
   try {
-    await redisClient.flushAll();
+    await redisClient.flushall();
     console.log("Redis DB cleared successfully");
+    return true;
   } catch (error) {
     console.error("Error clearing Redis DB:", error);
+    return false;
   }
 }

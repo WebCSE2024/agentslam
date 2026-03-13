@@ -39,8 +39,11 @@ class MatchRouter {
 
         // --- Read operations ---
 
-        // GET /api/match  — all matches (admin)
+        // GET /api/match  — all matches
         this.router.get("/", authMiddleware, matchLimiter, matchController.getAllMatches);
+
+        // GET /api/match  — all matches (admin)
+        this.router.get("/admin", authMiddleware, matchLimiter, matchController.getAllMatchesAdmin);
 
         // GET /api/match/round/:roundId  — matches for a round
         // Must be before /:matchId to avoid conflict

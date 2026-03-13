@@ -117,14 +117,14 @@ class UserController{
         if(!req.user || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
-        const status = req.body?.status || USER_STATUS.ACTIVE;
-        const role = req.body?.role || USER_ROLE.USER;
+        const status = req.query?.status || USER_STATUS.ACTIVE;
+        const role = req.query?.role || USER_ROLE.USER;
         const users = await userModel.find({ status, role }).select("-password").lean();
 
         return new ApiResponse(200, users, "Users fetched successfully");
     })
 
-    deactivateUser = async(input)=>{
+    changeStatus = async(input)=>{
         
         const query = {
             $or: [
@@ -133,14 +133,23 @@ class UserController{
             ]
         };
 
-        const result = await userModel.updateOne(
-            query,
-            { $set: { status: USER_STATUS.DISABLED } }
-        );
-            return result.modifiedCount > 0;
+        const user = await userModel.findOne(query);
+
+        if (!user) {
+            return null;
+        }
+
+        const nextStatus = user.status === USER_STATUS.ACTIVE
+            ? USER_STATUS.DISABLED
+            : USER_STATUS.ACTIVE;
+
+        user.status = nextStatus;
+        await user.save();
+
+        return user;
     }
 
-    deactivateUserManually = asyncHandler(async (req, res) => {
+    changeStatusManually = asyncHandler(async (req, res) => {
         if(!req.user || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
@@ -151,21 +160,38 @@ class UserController{
             throw new ApiError(400, "User ID or username is required");
         }
 
-        const success = await this.deactivateUser(input);
+        const updatedUser = await this.changeStatus(input);
 
-        if (!success) {
-            throw new ApiError(404, "Error deactivating user.");
+        if (!updatedUser) {
+            throw new ApiError(404, "User not found.");
         }
 
-        return new ApiResponse(200, null, "User deactivated successfully");
+        const actionMessage = updatedUser.status === USER_STATUS.DISABLED
+            ? "User disabled successfully"
+            : "User enabled successfully";
+
+        return new ApiResponse(200, { status: updatedUser.status }, actionMessage);
     })
 
     resetUserDB = async() => {
         try {
             await userModel.deleteMany({});
             console.log("User collection cleared successfully.");
+            return true;
         } catch (error) {
             console.error("Error clearing user collection:", error);
+            return false;
+        }
+    }
+
+    resetUsers = async() => {
+        try {
+            await userModel.updateMany({ role: USER_ROLE.USER }, { $set: { status: USER_STATUS.ACTIVE , tournamentPoints: 0} });
+            console.log("User collection reset successfully.");
+            return true;
+        } catch (error) {
+            console.error("Error resetting user collection:", error);
+            return false;
         }
     }
 }

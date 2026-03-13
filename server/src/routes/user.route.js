@@ -42,8 +42,8 @@ class UserRouter {
         // POST /api/user/reset-password  — reset a user's password (admin)
         this.router.post("/reset-password", authMiddleware, resetPasswordLimiter, userController.resetPassword);
 
-        // POST /api/user/deactivate  — change user status to DISABLED (admin)
-        this.router.post("/deactivate", authMiddleware, userLimiter, userController.deactivateUserManually);
+        // POST /api/user/change-status  — toggle user status between active and disabled (admin)
+        this.router.post("/change-status", authMiddleware, userLimiter, userController.changeStatusManually);
     }
 }
 

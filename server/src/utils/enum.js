@@ -51,6 +51,8 @@ export const SOCKET_MESSAGE_TYPE = {
     MATCH_STATE: "match-state",
     MATCH_PAUSED: "match-paused",
     MATCH_RESUMED: "match-resumed",
+    MATCH_FINISH: 'match-finish',
     DEBATE_MESSAGE: "debate-message",
     SANDBOX_MESSAGE: "sandbox-message",
+    PREVIOUS_MESSAGE: "previous-message",
 }
