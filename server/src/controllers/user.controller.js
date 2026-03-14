@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { generatePassword } from "../utils/helpers.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
+import { logInfo } from "../utils/logger.js";
 
 class UserController{
 
@@ -37,6 +38,7 @@ class UserController{
 
         try {
             await user.save();
+            logInfo(`User password reset successfully. User: ${user.name || user.email}.`);
         } catch (error) {
             throw new ApiError(500, "Failed to reset password");
         }
@@ -145,6 +147,7 @@ class UserController{
 
         user.status = nextStatus;
         await user.save();
+        logInfo(`User status updated successfully. User: ${user.name || user.email}, Status: ${user.status}.`);
 
         return user;
     }
@@ -176,7 +179,7 @@ class UserController{
     resetUserDB = async() => {
         try {
             await userModel.deleteMany({});
-            console.log("User collection cleared successfully.");
+            logInfo("User collection reset successfully.");
             return true;
         } catch (error) {
             console.error("Error clearing user collection:", error);
@@ -187,7 +190,7 @@ class UserController{
     resetUsers = async() => {
         try {
             await userModel.updateMany({ role: USER_ROLE.USER }, { $set: { status: USER_STATUS.ACTIVE , tournamentPoints: 0} });
-            console.log("User collection reset successfully.");
+            logInfo("Tournament users reset successfully.");
             return true;
         } catch (error) {
             console.error("Error resetting user collection:", error);

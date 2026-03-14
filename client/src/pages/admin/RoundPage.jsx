@@ -674,6 +674,7 @@ export default function RoundPage() {
                       <tr className="bg-slate-50 border-b border-border text-left">
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">#</th>
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Weight</th>
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                       </tr>
@@ -698,6 +699,23 @@ export default function RoundPage() {
                                 onChange={(e) => setTopicField(topic._id, "title", e.target.value)}
                                 disabled={isSaving || isDeleting}
                               />
+                            </td>
+                            <td className="px-4 py-3 min-w-80">
+                              <details className="rounded-md border border-border bg-slate-50 px-3 py-2">
+                                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                  {edited.description?.trim() ? "View / Edit Description" : "Add Description"}
+                                </summary>
+                                <div className="mt-2">
+                                  <textarea
+                                    rows={3}
+                                    value={edited.description}
+                                    onChange={(e) => setTopicField(topic._id, "description", e.target.value)}
+                                    disabled={isSaving || isDeleting}
+                                    placeholder="Topic description"
+                                    className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 resize-y"
+                                  />
+                                </div>
+                              </details>
                             </td>
                             <td className="px-4 py-3 min-w-32">
                               <Input

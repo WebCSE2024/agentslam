@@ -1,12 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useParams } from "react-router-dom";
-import { Play, Pause, RotateCcw, MessageSquareText, Radio, Timer } from "lucide-react";
+import { Play, Pause, RotateCcw, MessageSquareText, Radio, Timer, Zap } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/contexts/UserContext";
-import { getMatchInfo, pauseMatch, resumeMatch, startMatch } from "@/api/matchApi";
+import { activateMatch, getMatchInfo, pauseMatch, resumeMatch, startMatch } from "@/api/matchApi";
 
 const SOCKET_MESSAGE_TYPE = {
   WELCOME: "welcome",
@@ -67,7 +67,6 @@ export default function MatchDetailPage() {
   const [loading, setLoading] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [currentTurn, setCurrentTurn] = useState(null);
   const [actionBusy, setActionBusy] = useState(null);
   const [timeLeftMs, setTimeLeftMs] = useState(0);
 
@@ -114,7 +113,6 @@ export default function MatchDetailPage() {
     ws.onopen = () => setWsConnected(true);
     ws.onclose = () => {
       setWsConnected(false);
-      setCurrentTurn(null);
     };
 
     ws.onmessage = (event) => {
@@ -132,8 +130,11 @@ export default function MatchDetailPage() {
 
       if (type === SOCKET_MESSAGE_TYPE.MATCH_STATE) {
         const stateData = payload?.data || null;
-        setMatchState(stateData);
-        setCurrentTurn(stateData?.turn ?? null);
+        const isRunning = stateData?.status === "started";
+        const nextTurn = isRunning && (stateData?.turn === "team1" || stateData?.turn === "team2")
+          ? stateData.turn
+          : null;
+        setMatchState({ ...(stateData || {}), turn: nextTurn });
         return;
       }
 
@@ -164,9 +165,6 @@ export default function MatchDetailPage() {
         appendMessage({ type, from, timestamp, text });
       }
 
-      if (from === "team1") setCurrentTurn("team2");
-      if (from === "team2") setCurrentTurn("team1");
-
       if (type === SOCKET_MESSAGE_TYPE.MATCH_PAUSED) {
         setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "paused" } : prev));
         setMatchState((prev) => ({
@@ -175,7 +173,7 @@ export default function MatchDetailPage() {
           finishTime: 0,
           remainingTime: Number(payload?.data?.timeRemaining || prev?.remainingTime || 0),
         }));
-      } else if (type === SOCKET_MESSAGE_TYPE.MATCH_RESUMED || type === SOCKET_MESSAGE_TYPE.MATCH_UPDATE) {
+      } else if (type === SOCKET_MESSAGE_TYPE.MATCH_RESUMED) {
         setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "started" } : prev));
         if (payload?.data?.finishTime) {
           setMatchState((prev) => ({
@@ -187,8 +185,7 @@ export default function MatchDetailPage() {
         }
       } else if (type === SOCKET_MESSAGE_TYPE.MATCH_FINISH) {
         setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "completed" } : prev));
-        setCurrentTurn(null);
-        setMatchState((prev) => ({ ...(prev || {}), status: "completed", finishTime: 0, remainingTime: 0, turn: null }));
+        setMatchState((prev) => ({ ...(prev || {}), status: "completed", finishTime: 0, remainingTime: 0 }));
       }
     };
 
@@ -228,17 +225,12 @@ export default function MatchDetailPage() {
     return undefined;
   }, [matchInfo?.matchStatus, matchState?.finishTime, matchState?.remainingTime, matchState?.status]);
 
-  useEffect(() => {
-    if ((matchState?.status || matchInfo?.matchStatus) === "started" && timeLeftMs <= 0) {
-      setCurrentTurn(null);
-    }
-  }, [matchInfo?.matchStatus, matchState?.status, timeLeftMs]);
-
   const onAdminAction = useCallback(async (type) => {
     if (!matchId) return;
     setActionBusy(type);
     try {
       let res;
+      if (type === "activate") res = await activateMatch(matchId);
       if (type === "start") res = await startMatch(matchId);
       if (type === "pause") res = await pauseMatch(matchId);
       if (type === "resume") res = await resumeMatch(matchId);
@@ -252,6 +244,10 @@ export default function MatchDetailPage() {
   }, [loadMatchInfo, matchId]);
 
   const effectiveStatus = matchState?.status || matchInfo?.matchStatus;
+  const currentTurn =
+    effectiveStatus === "started" && (matchState?.turn === "team1" || matchState?.turn === "team2")
+      ? matchState.turn
+      : null;
   const canStart = effectiveStatus === "active";
   const canPause = effectiveStatus === "started";
   const canResume = effectiveStatus === "paused";
@@ -297,6 +293,9 @@ export default function MatchDetailPage() {
 
         {isAdmin && (
           <div className="flex flex-wrap gap-3 pt-1">
+            <Button variant="secondary" onClick={() => onAdminAction("activate")} disabled={actionBusy !== null} className="gap-2">
+              {actionBusy === "activate" ? <><Radio className="h-4 w-4 animate-pulse" /> Activating…</> : <><Zap className="h-4 w-4" /> Activate</>}
+            </Button>
             <Button onClick={() => onAdminAction("start")} disabled={!canStart || actionBusy !== null} className="gap-2">
               {actionBusy === "start" ? <><Radio className="h-4 w-4 animate-pulse" /> Starting…</> : <><Play className="h-4 w-4" /> Start</>}
             </Button>

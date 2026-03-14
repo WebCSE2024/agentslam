@@ -8,12 +8,13 @@ import bcrypt from 'bcryptjs';
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generatePassword } from "../utils/helpers.js";
 import { signSandboxToken } from "../utils/authtoken.js";
+import { logInfo } from "../utils/logger.js";
 
 class OnboardingController{
 
     createUserFromPayload = async ({ role, name, email, admissionNumber }) => {
 
-        if (!role || !Object.values(USER_ROLE).includes(role)) {
+        if(process.env.NODE_ENV === "production"){if (!role || !Object.values(USER_ROLE).includes(role)) {
             throw new ApiError(400, "Invalid role");
         }
         if (!email || !admissionNumber) {
@@ -47,6 +48,7 @@ class OnboardingController{
                 password: hashedPassword,
                 tournamentPoints: 0,
             });
+            logInfo(`User created successfully. User: ${user.name || user.email}, Role: ${user.role}.`);
         } catch (error) {
             throw new ApiError(500, "Failed to create user");
         }
@@ -83,6 +85,59 @@ class OnboardingController{
             email: user.email,
             admissionNumber: user.admissionNumber,
         };
+        }else{
+            if (!role || !Object.values(USER_ROLE).includes(role)) {
+                throw new ApiError(400, "Invalid role");
+            }
+            if (!email || !admissionNumber) {
+                throw new ApiError(400, "Email and admissionNumber are required");
+            }
+
+            const normalizedEmail = String(email).toLowerCase().trim();
+            const normalizedAdmission = String(admissionNumber).trim();
+
+            const existing = await userModel.findOne({
+                $or: [{ email: normalizedEmail }, { admissionNumber: normalizedAdmission }],
+            });
+
+            if (existing) {
+                throw new ApiError(400, "User already exists");
+            }
+
+            const plainPassword = '1234';
+            const hashedPassword = await bcrypt.hash(plainPassword, 12);
+
+            const username = normalizedAdmission.toLowerCase();
+
+            let user;
+            try {
+                user = await userModel.create({
+                    role,
+                    status: "active",
+                    name: String(name || "").trim(),
+                    email: normalizedEmail,
+                    admissionNumber: normalizedAdmission,
+                    password: hashedPassword,
+                    tournamentPoints: 0,
+                });
+                logInfo(`User created successfully. User: ${user.name || user.email}, Role: ${user.role}.`);
+            } catch (error) {
+                throw new ApiError(500, "Failed to create user");
+            }
+
+            const sandboxToken = signSandboxToken({ userId: user._id });
+            const WS_SANDBOX_BASE = process.env.WS_SANDBOX_URL || "ws://localhost:8000/ws-sandbox";
+            const sandboxUrl = `${WS_SANDBOX_BASE}?payload=${sandboxToken}`;
+            logInfo(`Sandbox URL generated successfully for user ${user.name || user.email}.`);
+
+            return {
+                id: user._id,
+                role: user.role,
+                name: user.name,
+                email: user.email,
+                admissionNumber: user.admissionNumber,
+            };
+        }
     }
 
     createUser = asyncHandler(async (req, res) => {
@@ -115,13 +170,13 @@ class OnboardingController{
                 results.push(result);
             } catch (err) {
                 failed += 1;
-                const logInfo = {
+                const userInfo = {
                     name: entry?.name,
                     email: entry?.email,
                     role: entry?.role,
                     admissionNumber: entry?.admissionNumber,
                 };
-                console.error("Onboarding batch error:", logInfo, err);
+                console.error("Onboarding batch error:", userInfo, err);
             }
         }
 

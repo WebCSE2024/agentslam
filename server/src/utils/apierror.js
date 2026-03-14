@@ -10,6 +10,8 @@ class ApiError extends Error{
         } else {
             Error.captureStackTrace(this, this.constructor);
         }
+
+        if(statusCode>=500)logInfo(`Server error occurred: ${message}`, `Stack: ${this.stack}`);
     }
 }
 

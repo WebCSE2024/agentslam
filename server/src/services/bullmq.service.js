@@ -11,9 +11,34 @@ class BullMQService {
                 url: process.env.REDIS_URI
             }
         });
-        this.resultWorker = new Worker('result-req', async (job)=>{   //this expects job.data as --->{matchId, result:{scores:{team1, team2}, winner}}
+        this.resultWorker = new Worker('result-req', async (job)=>{   //this expects job.data as --->{matchId, result:{scores:{team1, team2}, winner:{'team1' or 'team2'}}}
 
             switch(job.name){
+                case 'match-result-request': {
+                    const { matchId, conversations = [] } = job.data;
+                    console.log(`Mock processing requested for match ${matchId}`);
+                    console.log(`Conversation length: ${conversations.length}`);
+
+                    // mock delay before publishing the computed result
+                    await new Promise((resolve) => setTimeout(resolve, 15000));
+
+                    const team1 = this.getRandomScore();
+                    const team2 = this.getRandomScore();
+                    const winner = team1 === team2
+                        ? (Math.random() < 0.5 ? 'team1' : 'team2')
+                        : (team1 > team2 ? 'team1' : 'team2');
+
+                    await this.resultqueue.add('match-result', {
+                        matchId,
+                        result: {
+                            scores: { team1, team2 },
+                            winner
+                        }
+                    });
+
+                    console.log(`Mock result enqueued for match ${matchId}`);
+                    break;
+                }
                 case 'match-result':
                     const { matchId } = job.data;
                     console.log(`Processing result for match ${matchId}`);
@@ -39,6 +64,10 @@ class BullMQService {
         
         console.log('BullMQ Configured')
 
+    }
+
+    getRandomScore() {
+        return Math.floor(Math.random() * 51) + 50;
     }
 
     init() {

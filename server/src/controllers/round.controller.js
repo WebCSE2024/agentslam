@@ -5,6 +5,7 @@ import ApiResponse from "../utils/apiresponse.js";
 import { ROUND_STATUS, USER_ROLE, USER_STATUS, } from "../utils/enum.js";
 import redisClient from "../configs/redis.config.js";
 import userModel from "../models/user.model.js";
+import { logInfo } from "../utils/logger.js";
 
 class RoundController{
 
@@ -17,6 +18,7 @@ class RoundController{
             for(const team of teams){
                 await redisClient.zadd("leaderboard", Number(team.tournamentPoints) || 0, `${team._id}:${team.name}`)
             }
+            logInfo(`Leaderboard loaded in Redis successfully. Entries: ${teams.length}.`);
         }
 
         return;
@@ -30,6 +32,7 @@ class RoundController{
         
         await redisClient.del("leaderboard");
         await this.loadLeaderBoard();
+        logInfo("Leaderboard refreshed in Redis successfully.");
 
         return new ApiResponse(200, null, "Leaderboard refreshed successfully");
     })
@@ -54,6 +57,7 @@ class RoundController{
             roundName,
             roundStatus: roundStatus || ROUND_STATUS.CREATED
         });
+        logInfo(`Round created successfully. Name: ${round.roundName}, Status: ${round.roundStatus}.`);
 
         this.loadLeaderBoard();
 
@@ -77,6 +81,7 @@ class RoundController{
         if(!round){
             throw new ApiError(404, "Round not found");
         }
+        logInfo(`Round name updated successfully. Name: ${round.roundName}.`);
 
         return new ApiResponse(200, round, "Round updated successfully")
     })
@@ -98,6 +103,7 @@ class RoundController{
         if(!round){
             throw new ApiError(404, "Round not found");
         }
+        logInfo(`Round status updated successfully. Name: ${round.roundName}, Status: ${round.roundStatus}.`);
 
         return new ApiResponse(200, round, "Round status updated successfully")
     })
@@ -188,6 +194,7 @@ class RoundController{
         if(!round){
             throw new ApiError(404, "Round not found");
         }
+        logInfo(`Round deleted successfully. Name: ${round.roundName}.`);
 
         return new ApiResponse(200, null, "Round deleted successfully")
     })
@@ -196,7 +203,7 @@ class RoundController{
             
         try {
             await roundModel.deleteMany({});
-            console.log("Round database reset successfully");
+            logInfo("Round database reset successfully.");
             return true;
         } catch (error) {
             console.error("Error resetting round database:", error);

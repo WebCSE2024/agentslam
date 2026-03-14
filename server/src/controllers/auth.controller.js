@@ -7,6 +7,7 @@ import { USER_STATUS } from "../utils/enum.js";
 import { generateSessionId, signAccessToken, signRefreshToken, verifyToken, getCookieOptions } from "../utils/authtoken.js";
 import redisClient from "../configs/redis.config.js";
 import { userSessionKey } from "../utils/rediskeys.js";
+import { logInfo } from "../utils/logger.js";
 
 class AuthController{
 
@@ -53,6 +54,7 @@ class AuthController{
         await redisClient.set(userSessionKey(user._id.toString()), sid, 
             'EX', this.SESSION_TTL_SECONDS,
         );
+        logInfo(`Redis session saved successfully for user ${user.name || user.email}.`);
 
         const accessToken = signAccessToken({
             userId: user._id.toString(),
@@ -117,6 +119,7 @@ class AuthController{
 
         if (userId) {
             await this.revokeSessionByUserId(String(userId));
+            logInfo(`Redis session deleted successfully for userId ${String(userId)}.`);
         }
 
         this.cleanUpCookie(res);

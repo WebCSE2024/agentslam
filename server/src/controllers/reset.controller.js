@@ -8,6 +8,7 @@ import roundController from './round.controller.js';
 import topicController from './topic.controller.js';
 import matchController from './match.controller.js';
 import socketService from '../services/socket.service.js';
+import { logInfo } from '../utils/logger.js';
 class ResetController {
 
     resetAll = asyncHandler(async (req, res) => {
@@ -24,6 +25,7 @@ class ResetController {
                 const socketAck = socketService.resetSocketStore();
                 const redisAck = await redisCleanUp();
                 if(userAck && roundAck && topicAck && matchAck && socketAck && redisAck){
+                    logInfo('All databases, socket store, and Redis state reset successfully.');
                     return new ApiResponse(200, null, "All rounds, topics, matches, sockets reset successfully");
                 }else{
                     throw new ApiError(400, 'Error reseting tournament')
@@ -48,6 +50,7 @@ class ResetController {
             const redisAck = await redisCleanUp();
 
             if(userAck && roundAck && topicAck && matchAck && socketAck && redisAck){
+                logInfo('Tournament state reset successfully for users, rounds, topics, matches, sockets, and Redis.');
                 return new ApiResponse(200, null, "All rounds, topics, matches, sockets reset successfully");
             }else{
                 throw new ApiError(400, 'Error reseting tournament')

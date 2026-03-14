@@ -6,6 +6,7 @@ import redisClient from '../configs/redis.config.js';
 import { verifyToken } from '../utils/authtoken.js';
 import { userSessionKey } from '../utils/rediskeys.js';
 import matchModel from '../models/match.model.js';
+import { logInfo } from '../utils/logger.js';
 
 // Parse a raw cookie header string into a key-value object
 const parseCookies = (cookieHeader = "") =>
@@ -63,7 +64,6 @@ const SANDBOX_MSG_LIMIT  = 8;        // max messages per sandbox window
 const SANDBOX_MSG_WINDOW = 600;      // 10-minute window (seconds)
 const SANDBOX_DURATION   = 600_000;  // auto-disconnect after 10 min (ms)
 
-
 class SocketService {
 
     constructor() {
@@ -115,8 +115,6 @@ class SocketService {
                         socket.destroy();
                         return;
                     }
-
-                    console.log('Sandbox token verified for user ID:', decoded.sub);
                     const userId = String(decoded.sub);
 
                     const allowed = await sandboxSocketRateLimit(userId, SANDBOX_MSG_LIMIT, SANDBOX_MSG_WINDOW);
@@ -144,7 +142,7 @@ class SocketService {
 
                 // ── Auth: passkey (query param) OR access_token (cookie) ──────────────
                 const passkeyParam = reqUrl.searchParams.get("passkey");
-                const cookies      = cookieHeader ? parseCookies(request.headers.cookie ?? ""): {};
+                const cookies      = request.headers.cookie ? parseCookies(request.headers.cookie ?? ""): {};
                 const cookieToken  = cookies.access_token;
 
                 const rawToken = passkeyParam ?? cookieToken;
@@ -227,6 +225,7 @@ class SocketService {
         })
 
         this.wss.on('connection', async (ws) => {
+            logInfo(`WebSocket client connected successfully. Match ID: ${ws.matchId}, User Name: ${ws.user?.username}, Role: ${ws.user?.role}.`);
             
             if (ws.readyState === ws.OPEN) {
                 let welcomeMsg = `Welcome ${ws.user.username} to AgentSlam! You are connected as ${ws.user.team}.`
@@ -356,6 +355,13 @@ class SocketService {
                             }));
                         }
                     })
+
+                    if (message.type === SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE) {
+                        const latestState = await redisClient.hgetall(`match:${ws.matchId}`);
+                        if (latestState && Object.keys(latestState).length) {
+                            this.broadcastToMatch(ws.matchId, SOCKET_MESSAGE_TYPE.MATCH_STATE, formatMatchState(latestState));
+                        }
+                    }
                 }
             })
             
@@ -365,13 +371,10 @@ class SocketService {
                 const username = ws.user.username
                 if(sockets && sockets.size){
                     sockets.delete(ws);
-                    if (!sockets.size) {
-                        this.socketStore.delete(matchId);
-                    }
                 }
 
                 reason = reason.toString() || "No reason provided";
-                console.log(`WebSocket connection closed for user ${username} in match ${matchId}. Code: ${code}, Reason: ${reason}`)
+                logInfo(`WebSocket client disconnected. Match ID: ${matchId}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
                 if(sockets && sockets.size){
                     sockets.forEach(socket => {
                         if(socket.readyState === socket.OPEN){
@@ -384,13 +387,13 @@ class SocketService {
         })
 
         this.wss.on("wsClientError", (err, socket) => {
-            console.log("bad websocket client:", err.message);
+            console.error("Bad WebSocket client error:", err);
             socket.destroy();
         });
 
         this.wss.on('close',()=>{
 
-            console.log('Websocket server closes')
+            logInfo('WebSocket server closed.');
         })
 
         // ── Sandbox connection handler ────────────────────────────────────────
@@ -400,7 +403,7 @@ class SocketService {
                 sendSocketMessage(ws, buildSocketEnvelope({
                     type: SOCKET_MESSAGE_TYPE.WELCOME,
                     data: {
-                        message: `Welcome to the AgentSlam Sandbox, ${ws.user.username}. Send messages using: { 'type': 'SANDBOX_MESSAGE', 'data': { 'message': 'your message' } }. This session will auto-disconnect in 10 minutes.`
+                        message: `Welcome to the AgentSlam Sandbox, ${ws.user.username}. Send messages using: { 'type': 'sandbox-message', 'data': { 'message': 'your message' } }. This session will auto-disconnect in 10 minutes.`
                     },
                     from: 'system',
                 }));
@@ -452,21 +455,21 @@ class SocketService {
 
             ws.on('close', () => {
                 clearTimeout(autoDisconnect);
-                console.log(`Sandbox session closed for user ${ws.user.id}`);
+                logInfo(`Sandbox session closed for userId ${ws.user.id}.`);
             });
         });
 
-        console.log("WebSocket server initialized");
+        logInfo('WebSocket server initialized successfully.');
     }
 
     broadcastToMatch = (matchId, type, data) => {
 
-        console.log(`Request came for broadcasting message to match ${matchId}:`, {type, data});
+        // console.log(`Broadcasting to match ${matchId} - Type: ${type}, Data:`, data);
         const socketList = this.socketStore.get(matchId);
         if(socketList && socketList.size){
             socketList.forEach(ws => {
                 if(ws.readyState === ws.OPEN){
-                    console.log(`Broadcasting message to match ${matchId}:`, {type, data});
+                    // console.log(`Broadcasting message to match ${matchId}:`, {type, data});
                     sendSocketMessage(ws, buildSocketEnvelope({ type, data, from: 'system' }));
                 }
             })
@@ -496,7 +499,7 @@ class SocketService {
                 await matchModel.findByIdAndUpdate(matchId, {
                     $set: { matchStatus: MATCH_STATUS.COMPLETED, finishTime: 0, remainingTime: 0 }
                 }, { new: true });
-                console.log(`Match State Updated for ${matchId}`)
+                logInfo(`Match state saved successfully. Match ID: ${matchId}, Status: ${MATCH_STATUS.COMPLETED}.`);
 
             } catch (error) {
                 console.error("Error occurred while updating match status:", error);
@@ -507,7 +510,7 @@ class SocketService {
             //bullmq activities
             try {
                 await this.processForResult(matchId);
-                console.log(`Result processing job added for match ${matchId}`);
+                logInfo(`Result processing job queued successfully. Match ID: ${matchId}.`);
             } catch (error) {
                 console.error(`Error adding result processing job for match ${matchId}:`, error);
             }
@@ -529,6 +532,7 @@ class SocketService {
 
         const stateFromRedis = await redisClient.hgetall(`match:${matchId}`);
         const matchState = formatMatchState(stateFromRedis);
+        logInfo(`Match started successfully. Match ID: ${matchId}, Turn: ${turn}, Finish time: ${new Date(finishTime).toISOString()}.`);
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `The match has started! Let the slam begin! It's ${turn}'s turn.`, finishTime });
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_STATE, matchState);
         const timer = this.setMatchTimeout(matchId, duration);
@@ -537,6 +541,7 @@ class SocketService {
     }
 
     pauseMatch = (matchId, timeRemaining) => {
+        logInfo(`Match paused successfully. Match ID: ${matchId}, Remaining time (ms): ${timeRemaining}.`);
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_PAUSED, { timeRemaining, message: "Match has been paused." });
         const timer = this.timerStore.get(matchId);
         if(timer){
@@ -557,6 +562,7 @@ class SocketService {
     }
 
     resumeMatch = (matchId, finishTime, turn, remainingTime) => {
+        logInfo(`Match resumed successfully. Match ID: ${matchId}, Turn: ${turn}, Finish time: ${new Date(finishTime).toISOString()}.`);
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_RESUMED, { finishTime, message: `Match has resumed! It's ${turn}'s turn.` });
 
         const existingTimer = this.timerStore.get(matchId);
@@ -584,6 +590,7 @@ class SocketService {
 
         if(!this.socketStore.has(matchId)){
             this.socketStore.set(matchId, new Set());
+            logInfo(`Match registered in socket store successfully. Match ID: ${matchId}.`);
         }
     }
 
@@ -611,6 +618,7 @@ class SocketService {
             })
         }
         this.socketStore.delete(matchId);
+        logInfo(`Match unregistered from socket store successfully. Match ID: ${matchId}.`);
         return;
     }
 

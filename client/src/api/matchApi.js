@@ -21,3 +21,6 @@ export const pauseMatch = (matchId) =>
 
 export const resumeMatch = (matchId) =>
 	axiosInstance.post(`/match/resume/${matchId}`);
+
+export const updateMatchResult = (matchId, payload) =>
+	axiosInstance.post(`/match/result/${matchId}`, payload);

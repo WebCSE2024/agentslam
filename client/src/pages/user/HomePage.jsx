@@ -1,16 +1,52 @@
-import { useContext } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, Zap, Trophy, Users } from "lucide-react";
+import { Bot, Trophy, Mail, Hash, Loader2 } from "lucide-react";
+import { toast } from "react-toastify";
 import { UserContext } from "@/contexts/UserContext";
-
-const stats = [
-  { icon: Users, label: "Registered Teams", value: "—" },
-  { icon: Zap, label: "Rounds Completed", value: "—" },
-  { icon: Trophy, label: "Your Points", value: "—" },
-];
+import { getLeaderBoard } from "@/api/roundApi";
 
 export default function HomePage() {
   const { user } = useContext(UserContext);
+  const [leaderBoard, setLeaderBoard] = useState([]);
+  const [loadingLeaderBoard, setLoadingLeaderBoard] = useState(false);
+
+  const loadLeaderBoard = useCallback(async () => {
+    setLoadingLeaderBoard(true);
+    try {
+      const res = await getLeaderBoard();
+      setLeaderBoard(Array.isArray(res?.data) ? res.data : []);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to load leaderboard.");
+      setLeaderBoard([]);
+    } finally {
+      setLoadingLeaderBoard(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLeaderBoard();
+  }, [loadLeaderBoard]);
+
+  const stats = [
+    {
+      icon: Mail,
+      label: "User Email",
+      value: user?.email || "—",
+      valueClass: "text-base",
+    },
+    {
+      icon: Hash,
+      label: "Admission Number",
+      value: user?.admissionNumber || "—",
+      valueClass: "text-xl",
+    },
+    {
+      icon: Trophy,
+      label: "Your Points",
+      value: Number(user?.tournamentPoints || 0),
+      valueClass: "text-2xl",
+    },
+  ];
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
@@ -42,7 +78,7 @@ export default function HomePage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-        {stats.map(({ icon: Icon, label, value }, i) => (
+        {stats.map(({ icon: Icon, label, value, valueClass }, i) => (
           <motion.div
             key={label}
             initial={{ opacity: 0, y: 16 }}
@@ -53,32 +89,61 @@ export default function HomePage() {
             <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
               <Icon className="h-5 w-5 text-foreground" />
             </div>
-            <div>
-              <p className="text-2xl font-black font-heading">{value}</p>
+            <div className="min-w-0">
+              <p className={`${valueClass} font-black font-heading truncate`}>{value}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Placeholder content */}
+      {/* Leaderboard */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4, duration: 0.5 }}
-        className="rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center py-20 gap-4 text-center"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
       >
-        <div className="h-14 w-14 rounded-2xl bg-white border border-border shadow flex items-center justify-center">
-          <Zap className="h-7 w-7 text-muted-foreground" />
+        <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500" />
+        <div className="px-6 py-5 border-b border-border flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-slate-100 flex items-center justify-center">
+            <Trophy className="h-5 w-5 text-slate-700" />
+          </div>
+          <div>
+            <h2 className="font-bold text-base">Current Leaderboard</h2>
+            <p className="text-xs text-muted-foreground">Live standings for this round</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-foreground">
-            The competition hasn&apos;t started yet
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Stay tuned — rounds and challenges will appear here once the
-            organising team kicks things off.
-          </p>
+
+        <div className="px-6 py-6">
+          {loadingLeaderBoard ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading leaderboard...
+            </div>
+          ) : leaderBoard.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No leaderboard data found.</div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-border text-left">
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rank</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderBoard.map((item, idx) => (
+                    <tr key={`${item.name}-${idx}`} className="border-b border-border last:border-0 hover:bg-slate-50/60">
+                      <td className="px-4 py-3 font-semibold">#{idx + 1}</td>
+                      <td className="px-4 py-3 uppercase">{item.name}</td>
+                      <td className="px-4 py-3">{item.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

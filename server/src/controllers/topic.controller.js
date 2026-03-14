@@ -2,6 +2,7 @@ import topicModel from "../models/topic.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/apierror.js";
 import ApiResponse from "../utils/apiresponse.js";
+import { logInfo } from "../utils/logger.js";
 
 class TopicController{
 
@@ -22,6 +23,7 @@ class TopicController{
             round,
             weights
         });
+        logInfo(`Topic created successfully. Title: ${topic.title}.`);
 
         return new ApiResponse(201, topic, "Topic created successfully");
     })
@@ -47,6 +49,7 @@ class TopicController{
 
         const insertedEntries = insertedTopics.length;
         const failedEntries = topics.length - insertedEntries;
+        logInfo(`Topic batch created successfully. Inserted: ${insertedEntries}, Failed: ${failedEntries}.`);
         return new ApiResponse(201, { insertedEntries, failedEntries }, "Topics created successfully");
     })
 
@@ -93,6 +96,7 @@ class TopicController{
         if(!topic){
             throw new ApiError(404, "Topic not found");
         }
+        logInfo(`Topic updated successfully. Title: ${topic.title}.`);
 
         return new ApiResponse(200, topic, "Topic updated successfully");
     })
@@ -109,6 +113,7 @@ class TopicController{
         if(!topic){
             throw new ApiError(404, "Topic not found");
         }
+        logInfo(`Topic deleted successfully. Title: ${topic.title}.`);
 
         return new ApiResponse(200, null, "Topic deleted successfully");
     })
@@ -117,7 +122,7 @@ class TopicController{
         
         try {
             await topicModel.deleteMany({});
-            console.log("Topic database reset successfully");
+            logInfo("Topic database reset successfully.");
             return true;
         } catch (error) {
             console.error("Error resetting topic database:", error);

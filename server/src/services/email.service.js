@@ -1,5 +1,6 @@
 import { createTransport } from "nodemailer";
 import nodemailer from "nodemailer";
+import { logInfo } from "../utils/logger.js";
 // const { SMTP_EMAIL, SMTP_PASS, SMTP_HOST, SMTP_PORT, EMAIL } = process.env;
 
 var transporter = nodemailer.createTransport({
@@ -26,7 +27,7 @@ transporter.verify((error) => {
   if (error) {
     console.error("SMTP transporter error:", error.message);
   } else {
-    console.log("SMTP ready");
+    logInfo("SMTP transporter verified successfully.");
   }
 });
 
@@ -43,7 +44,7 @@ export async function sendEmail({ to, subject, html, text }) {
       text,
       html,
     });
-    console.log(`Email sent to ${to}`);
+    logInfo(`Email sent successfully to ${to}.`);
   } catch (error) {
     console.error("Error sending email:", error.message);
     throw error; // re-throw so the controller can catch and return 500

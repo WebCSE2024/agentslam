@@ -21,7 +21,7 @@ class AuthRouter {
         this.router.post("/login", loginLimiter, authController.login);
 
         // GET /api/auth/me
-        this.router.get("/me", authMiddleware, authController.me);
+        this.router.get("/me", authMiddleware, loginLimiter, authController.me);
 
         // POST /api/auth/logout
         this.router.post("/logout", authMiddleware, authController.logout);
