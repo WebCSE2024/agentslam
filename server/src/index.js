@@ -18,21 +18,25 @@ import resetRouter from "./routes/reset.route.js";
 
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 
-const PORT = process.env.PORT || 8000;
+const PORT = Number(process.env.PORT || 8000);
+const APP_JSON_LIMIT = process.env.APP_JSON_LIMIT || "16kb";
+const APP_URLENCODED_LIMIT = process.env.APP_URLENCODED_LIMIT || "16kb";
+const SHUTDOWN_TIMEOUT_MS = Number(process.env.SHUTDOWN_TIMEOUT_MS || 10000);
+const TRUST_PROXY = Number(process.env.TRUST_PROXY || 1);
 
 //  Express app 
 const app = express();
 
 // Trust first proxy so req.ip reflects real client IP (needed for rate limiter)
-app.set("trust proxy", 1);
+app.set("trust proxy", TRUST_PROXY);
 
 //  Core middleware 
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "*",
     credentials: true,
 }));
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.json({ limit: APP_JSON_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: APP_URLENCODED_LIMIT }));
 app.use(cookieParser());
 
 //  Health check 
@@ -73,7 +77,7 @@ const shutdown = async (signal) => {
     setTimeout(() => {
         console.error("Forced shutdown after timeout.");
         process.exit(1);
-    }, 10_000);
+    }, SHUTDOWN_TIMEOUT_MS);
 };
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

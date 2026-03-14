@@ -10,6 +10,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
 import { logInfo } from "../utils/logger.js";
 
+const ONBOARDING_PASSWORD_LENGTH = Number(process.env.ONBOARDING_PASSWORD_LENGTH || 12);
+const BCRYPT_SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 12);
+
 class UserController{
 
     resetPassword = asyncHandler(async (req, res) => {
@@ -31,8 +34,8 @@ class UserController{
             throw new ApiError(404, "User not found");
         }
 
-        const plainPassword = generatePassword(12);
-        const hashedPassword = await bcrypt.hash(plainPassword, 12);
+        const plainPassword = generatePassword(ONBOARDING_PASSWORD_LENGTH);
+        const hashedPassword = await bcrypt.hash(plainPassword, BCRYPT_SALT_ROUNDS);
 
         user.password = hashedPassword;
 

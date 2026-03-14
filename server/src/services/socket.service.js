@@ -55,14 +55,14 @@ const sendSocketMessage = (ws, payload) => {
     ws.send(JSON.stringify(payload));
 };
 
-const MAX_MESSAGE_SIZE = 1024 * 5; // 5KB
-const MAX_CHAT_MESSAGE_SIZE = 1024 * 2; // 2KB
-const SOCKET_MESSAGE_LIMIT = 5       // max messages per window per user
-const SOCKET_WINDOW_TIME = 2*60   // 2-minute window for messages
+const MAX_MESSAGE_SIZE = Number(process.env.SOCKET_MAX_MESSAGE_SIZE || 1024 * 5); // 5KB
+const MAX_CHAT_MESSAGE_SIZE = Number(process.env.SOCKET_MAX_CHAT_MESSAGE_SIZE || 1024 * 2); // 2KB
+const SOCKET_MESSAGE_LIMIT = Number(process.env.SOCKET_MESSAGE_LIMIT || 5); // max messages per window per user
+const SOCKET_WINDOW_TIME = Number(process.env.SOCKET_WINDOW_TIME_SEC || 2 * 60); // 2-minute window for messages
 
-const SANDBOX_MSG_LIMIT  = 8;        // max messages per sandbox window
-const SANDBOX_MSG_WINDOW = 600;      // 10-minute window (seconds)
-const SANDBOX_DURATION   = 600_000;  // auto-disconnect after 10 min (ms)
+const SANDBOX_MSG_LIMIT = Number(process.env.SANDBOX_MSG_LIMIT || 8); // max messages per sandbox window
+const SANDBOX_MSG_WINDOW = Number(process.env.SANDBOX_MSG_WINDOW_SEC || 600); // 10-minute window (seconds)
+const SANDBOX_DURATION = Number(process.env.SANDBOX_DURATION_MS || 600000); // auto-disconnect after 10 min (ms)
 
 class SocketService {
 

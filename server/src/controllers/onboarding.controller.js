@@ -10,6 +10,10 @@ import { generatePassword } from "../utils/helpers.js";
 import { signSandboxToken } from "../utils/authtoken.js";
 import { logInfo } from "../utils/logger.js";
 
+const ONBOARDING_PASSWORD_LENGTH = Number(process.env.ONBOARDING_PASSWORD_LENGTH || 12);
+const ONBOARDING_DEV_PASSWORD = process.env.ONBOARDING_DEV_PASSWORD || "1234";
+const BCRYPT_SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 12);
+
 class OnboardingController{
 
     createUserFromPayload = async ({ role, name, email, admissionNumber }) => {
@@ -32,8 +36,8 @@ class OnboardingController{
             throw new ApiError(400, "User already exists");
         }
 
-        const plainPassword = generatePassword(12);
-        const hashedPassword = await bcrypt.hash(plainPassword, 12);
+        const plainPassword = generatePassword(ONBOARDING_PASSWORD_LENGTH);
+        const hashedPassword = await bcrypt.hash(plainPassword, BCRYPT_SALT_ROUNDS);
 
         const username = normalizedAdmission.toLowerCase();
 
@@ -104,8 +108,8 @@ class OnboardingController{
                 throw new ApiError(400, "User already exists");
             }
 
-            const plainPassword = '1234';
-            const hashedPassword = await bcrypt.hash(plainPassword, 12);
+            const plainPassword = ONBOARDING_DEV_PASSWORD;
+            const hashedPassword = await bcrypt.hash(plainPassword, BCRYPT_SALT_ROUNDS);
 
             const username = normalizedAdmission.toLowerCase();
 

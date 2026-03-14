@@ -16,7 +16,7 @@ import { signPasskeyToken } from "../utils/authtoken.js";
 import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS, USER_STATUS } from "../utils/enum.js";
 import { logInfo } from "../utils/logger.js";
 
-export const MATCH_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+export const MATCH_DURATION = Number(process.env.MATCH_DURATION_MS || 5 * 60 * 1000); // 5 minutes in milliseconds
 
 class MatchController{
 

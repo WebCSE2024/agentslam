@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 
 const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "30m";
 const REFRESH_TOKEN_TTL = process.env.REFRESH_TOKEN_TTL || "7d";
+const PASSKEY_TOKEN_TTL = process.env.PASSKEY_TOKEN_TTL || "24h";
+const SANDBOX_TOKEN_TTL = process.env.SANDBOX_TOKEN_TTL || "45d";
 
 export function generateSessionId() {
   return crypto.randomBytes(16).toString("hex");
@@ -37,7 +39,7 @@ export function signPasskeyToken({ userId, sid, role, username, email }) {
   return jwt.sign(
     { sub: userId, sid, role, username, email, type: "passkey" },
     process.env.JWT_SECRET,
-    { expiresIn: "24h" }
+    { expiresIn: PASSKEY_TOKEN_TTL }
   );
 }
 
@@ -45,7 +47,7 @@ export function signSandboxToken({userId}){
   return jwt.sign(
     { sub: userId, type: "sandbox" },
     process.env.JWT_SECRET,
-    { expiresIn: "45d" }
+    { expiresIn: SANDBOX_TOKEN_TTL }
   );
 } 
 

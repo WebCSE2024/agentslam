@@ -1,14 +1,18 @@
 import { createTransport } from "nodemailer";
-import nodemailer from "nodemailer";
 import { logInfo } from "../utils/logger.js";
 // const { SMTP_EMAIL, SMTP_PASS, SMTP_HOST, SMTP_PORT, EMAIL } = process.env;
 
-var transporter = nodemailer.createTransport({
-  host: "sandbox.smtp.mailtrap.io",
-  port: 2525,
+const SMTP_HOST = process.env.SMTP_HOST || "sandbox.smtp.mailtrap.io";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 2525);
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+
+var transporter = createTransport({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
   auth: {
-    user: "ad61574af91281",
-    pass: "c6c187a4e64488"
+    user: SMTP_USER,
+    pass: SMTP_PASS,
   }
 });
 
