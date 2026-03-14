@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Swords, Target, CircleCheckBig, Play, Sparkles, X } from "lucide-react";
+import { Swords, Target, CircleCheckBig, Play, Sparkles, X, ChevronDown, Search } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,8 @@ export default function CommonMatchesPage() {
   const [resultModalMatch, setResultModalMatch] = useState(null);
   const [resultBusy, setResultBusy] = useState(false);
   const [resultForm, setResultForm] = useState({ team1: "", team2: "", winner: "" });
+  const [expandedRoundIds, setExpandedRoundIds] = useState(new Set());
+  const [globalSearch, setGlobalSearch] = useState("");
 
   const loadMatches = useCallback(async () => {
     setLoading(true);
@@ -195,7 +197,63 @@ export default function CommonMatchesPage() {
     }));
   }, [matches]);
 
+  const displayedRoundWiseMatches = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return roundWiseMatches;
+
+    return roundWiseMatches
+      .map((group) => {
+        const roundHit =
+          group.roundName?.toLowerCase().includes(q) ||
+          group.roundStatus?.toLowerCase().includes(q);
+
+        if (roundHit) return group;
+
+        const filteredMatches = (group.matches || []).filter((m) => {
+          const pair = `${m.team1} vs ${m.team2}`;
+          const reversePair = `${m.team2} vs ${m.team1}`;
+
+          return [m.team1, m.team2, m.winner, m.displayStatus, pair, reversePair]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(q));
+        });
+
+        return { ...group, matches: filteredMatches };
+      })
+      .filter((group) => group.matches?.length > 0);
+  }, [globalSearch, roundWiseMatches]);
+
   const totalMatches = useMemo(() => matches.length, [matches]);
+
+  useEffect(() => {
+    if (!displayedRoundWiseMatches.length) {
+      setExpandedRoundIds(new Set());
+      return;
+    }
+
+    const topRoundId = displayedRoundWiseMatches[0]?.roundId;
+    setExpandedRoundIds((prev) => {
+      const next = new Set();
+      if (topRoundId) next.add(topRoundId);
+
+      for (const id of prev) {
+        if (id !== topRoundId && displayedRoundWiseMatches.some((g) => g.roundId === id)) {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }, [displayedRoundWiseMatches]);
+
+  const toggleRound = useCallback((roundId) => {
+    if (!roundId) return;
+    setExpandedRoundIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roundId)) next.delete(roundId);
+      else next.add(roundId);
+      return next;
+    });
+  }, []);
 
   return (
     <div className="relative w-full max-w-7xl mx-auto px-6 py-8 md:px-8 md:py-10 space-y-8 overflow-hidden">
@@ -236,22 +294,59 @@ export default function CommonMatchesPage() {
         </div>
       </div>
 
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          placeholder="Search rounds, teams, winner, status..."
+          className="pl-9"
+        />
+      </div>
+
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading matches...</div>
-      ) : roundWiseMatches.length === 0 ? (
+      ) : displayedRoundWiseMatches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-sm text-muted-foreground bg-white">
           No matches found.
         </div>
       ) : (
         <div className="space-y-8">
-          {roundWiseMatches.map((group) => (
+          {displayedRoundWiseMatches.map((group, index) => {
+            const isTopRound = index === 0;
+            const isExpanded = isTopRound || expandedRoundIds.has(group.roundId);
+
+            return (
             <section key={group.roundId} className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <CircleCheckBig className="h-5 w-5 text-indigo-600" />
-                <h2 className="text-xl font-black tracking-tight uppercase text-slate-900">{group.roundName}</h2>
-                <span className="text-xs px-2.5 py-1 rounded-full border bg-slate-100 text-slate-700 capitalize font-semibold">{group.roundStatus}</span>
+              <div
+                className={`flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 ${!isTopRound ? "cursor-pointer" : ""}`}
+                onClick={!isTopRound ? () => toggleRound(group.roundId) : undefined}
+                role={!isTopRound ? "button" : undefined}
+                tabIndex={!isTopRound ? 0 : undefined}
+                onKeyDown={!isTopRound ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleRound(group.roundId);
+                  }
+                } : undefined}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <CircleCheckBig className="h-5 w-5 text-indigo-600" />
+                  <h2 className="text-xl font-black tracking-tight uppercase text-slate-900 truncate">{group.roundName}</h2>
+                  <span className="text-xs px-2.5 py-1 rounded-full border bg-slate-100 text-slate-700 capitalize font-semibold">{group.roundStatus}</span>
+                  <span className="text-xs px-2.5 py-1 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold">
+                    {group.matches.length} match{group.matches.length === 1 ? "" : "es"}
+                  </span>
+                </div>
+
+                {!isTopRound && (
+                  <span className="inline-flex items-center justify-center rounded-md border border-slate-200 p-1.5 text-slate-700 bg-white">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  </span>
+                )}
               </div>
 
+              {isExpanded && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {group.matches?.map((m, idx) => {
                   const displayStatus = m.displayStatus || "created";
@@ -339,8 +434,10 @@ export default function CommonMatchesPage() {
                   );
                 })}
               </div>
+              )}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 

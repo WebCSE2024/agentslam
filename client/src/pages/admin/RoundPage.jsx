@@ -10,6 +10,7 @@ import {
   BookOpen,
   Trash2,
   FileJson,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,29 @@ export default function RoundPage() {
   const [topicBatchJson, setTopicBatchJson] = useState("");
   const [savingTopicId, setSavingTopicId] = useState(null);
   const [deletingTopicId, setDeletingTopicId] = useState(null);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   const canCreateRound = useMemo(() => roundForm.roundName.trim().length > 0, [roundForm.roundName]);
   const canCreateTopic = useMemo(() => topicForm.title.trim().length > 0 && topicForm.round, [topicForm.title, topicForm.round]);
+  const filteredRounds = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return rounds;
+    return rounds.filter((r) =>
+      [r.roundName, r.roundStatus]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q))
+    );
+  }, [globalSearch, rounds]);
+
+  const filteredTopics = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return topics;
+    return topics.filter((t) =>
+      [t.title, t.description, t.weights]
+        .filter((value) => value !== undefined && value !== null)
+        .some((value) => String(value).toLowerCase().includes(q))
+    );
+  }, [globalSearch, topics]);
 
   const loadRounds = useCallback(async () => {
     setRoundsLoading(true);
@@ -336,8 +357,17 @@ export default function RoundPage() {
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-black tracking-tight font-heading uppercase">Round Management</h1>
-        <p className="text-sm text-muted-foreground mt-1">Rounds on left, topics on right</p>
       </motion.div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          placeholder="Search rounds and topics..."
+          className="pl-9"
+        />
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
         <div className="space-y-6">
@@ -353,7 +383,6 @@ export default function RoundPage() {
               </div>
               <div>
                 <h2 className="font-bold text-base">Create Round</h2>
-                <p className="text-xs text-muted-foreground">Add round name and initial status</p>
               </div>
             </div>
 
@@ -422,7 +451,7 @@ export default function RoundPage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading rounds...
                 </div>
-              ) : rounds.length === 0 ? (
+              ) : filteredRounds.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No rounds found.</div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
@@ -436,7 +465,7 @@ export default function RoundPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rounds.map((round, idx) => {
+                      {filteredRounds.map((round, idx) => {
                         const edited = roundEditRows[round._id] || { roundName: "", roundStatus: "created" };
                         const isBusy = savingRoundId === round._id;
                         return (
@@ -492,7 +521,6 @@ export default function RoundPage() {
               </div>
               <div>
                 <h2 className="font-bold text-base">Create Topic</h2>
-                <p className="text-xs text-muted-foreground">Create single or batch topics linked to a round</p>
               </div>
             </div>
 
@@ -665,7 +693,7 @@ export default function RoundPage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading topics...
                 </div>
-              ) : topics.length === 0 ? (
+              ) : filteredTopics.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No topics found for selected round.</div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
@@ -680,7 +708,7 @@ export default function RoundPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {topics.map((topic, idx) => {
+                      {filteredTopics.map((topic, idx) => {
                         const edited = topicEditRows[topic._id] || {
                           title: "",
                           description: "",

@@ -51,7 +51,7 @@ const buildSocketEnvelope = ({ type, data = {}, from = 'system' }) => {
 };
 
 const sendSocketMessage = (ws, payload) => {
-    if (!ws || ws.readyState !== ws.OPEN) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(payload));
 };
 
@@ -227,7 +227,7 @@ class SocketService {
         this.wss.on('connection', async (ws) => {
             logInfo(`WebSocket client connected successfully. Match ID: ${ws.matchId}, User Name: ${ws.user?.username}, Role: ${ws.user?.role}.`);
             
-            if (ws.readyState === ws.OPEN) {
+            if (ws.readyState === WebSocket.OPEN) {
                 let welcomeMsg = `Welcome ${ws.user.username} to AgentSlam! You are connected as ${ws.user.team}.`
                 if(ws.user.team !== 'viewer'){
                     welcomeMsg+=`Get ready to slam! Send debate messages using: { "type": "debate-message", "data": { "message": "your argument" } }.`;
@@ -287,21 +287,28 @@ class SocketService {
                         throw new Error("Invalid message format");
                     }
                 } catch {
-                    if (ws.readyState === ws.OPEN) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid message format.` }, from: 'system' }));
                     }
                     return;
                 }
 
                 if(matchState.status !== MATCH_STATUS.STARTED){
-                    if(ws.readyState === ws.OPEN){
+                    if(ws.readyState === WebSocket.OPEN){
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Match is not currently accepting message.` }, from: 'system' }));
                     }
                     return;
                 }
 
+                if(ws.user.team === 'viewer'){
+                    if(ws.readyState === WebSocket.OPEN){
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `You can't send message.` }, from: 'system' }));
+                    }
+                    return;
+                }
+
                 if(ws.user.team !== currTurn && ws.user.role !== USER_ROLE.ADMIN){
-                    if(ws.readyState === ws.OPEN){
+                    if(ws.readyState === WebSocket.OPEN){
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `It's not your turn! Please wait for your turn.` }, from: 'system' }));
                     }
                     return;
@@ -310,7 +317,7 @@ class SocketService {
                 const textMessage = message?.data?.message;
 
                 if(textMessage && textMessage.length > MAX_CHAT_MESSAGE_SIZE){
-                    if(ws.readyState === ws.OPEN){
+                    if(ws.readyState === WebSocket.OPEN){
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message.` }, from: 'system' }));
                     }
                     return;
@@ -333,7 +340,7 @@ class SocketService {
                             'turn': currTurn === "team1" ? "team2" : "team1", // Switch turn after each message
                         })
                     }else{
-                        if(ws.readyState === ws.OPEN){
+                        if(ws.readyState === WebSocket.OPEN){
                             sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Cannot send debate messages when match is not live.` }, from: 'system' }));
                         }
                     }
@@ -341,13 +348,13 @@ class SocketService {
 
                 if(socketList && socketList.size){
                     socketList.forEach(socket => {
-                        if(socket != ws && socket.readyState === socket.OPEN){
+                        if(socket != ws && socket.readyState === WebSocket.OPEN){
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE,
                                 data: { message: textMessage },
                                 from: ws.user.team,
                             }));
-                        }else if(socket === ws && socket.readyState === socket.OPEN){
+                        }else if(socket === ws && socket.readyState === WebSocket.OPEN){
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.INFO,
                                 data: { message: 'acknowledged' },
@@ -373,14 +380,16 @@ class SocketService {
                     sockets.delete(ws);
                 }
 
-                reason = reason.toString() || "No reason provided";
-                logInfo(`WebSocket client disconnected. Match ID: ${matchId}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
-                if(sockets && sockets.size){
-                    sockets.forEach(socket => {
-                        if(socket.readyState === socket.OPEN){
-                            sendSocketMessage(socket, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: `${username} has left the match.` }, from: 'system' }));
-                        }
-                    })
+                if(ws.user?.team !== 'viewer' || ws.user?.role === USER_ROLE.ADMIN){
+                    reason = reason.toString() || "No reason provided";
+                    logInfo(`WebSocket client disconnected. Match ID: ${matchId}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
+                    if(sockets && sockets.size){
+                        sockets.forEach(socket => {
+                            if(socket.readyState === WebSocket.OPEN){
+                                sendSocketMessage(socket, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: `${username} has left the match.` }, from: 'system' }));
+                            }
+                        })
+                    }
                 }
             })
 
@@ -399,7 +408,7 @@ class SocketService {
         // ── Sandbox connection handler ────────────────────────────────────────
         this.sandboxWss.on('connection', (ws) => {
 
-            if (ws.readyState === ws.OPEN) {
+            if (ws.readyState === WebSocket.OPEN) {
                 sendSocketMessage(ws, buildSocketEnvelope({
                     type: SOCKET_MESSAGE_TYPE.WELCOME,
                     data: {
@@ -411,7 +420,7 @@ class SocketService {
 
             // Auto-disconnect after SANDBOX_DURATION
             const autoDisconnect = setTimeout(() => {
-                if (ws.readyState === ws.OPEN) {
+                if (ws.readyState === WebSocket.OPEN) {
                     sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: 'Sandbox session expired. You have been disconnected after 10 minutes.' }, from: 'system' }));
                     ws.close(1000, 'Session timeout');
                 }
@@ -421,7 +430,7 @@ class SocketService {
 
                 const allowed = await sandboxSocketRateLimit(`sandbox:${ws.user.id}`, SANDBOX_MSG_LIMIT, SANDBOX_MSG_WINDOW);
                 if (!allowed) {
-                    if (ws.readyState === ws.OPEN) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded. Max ${SANDBOX_MSG_LIMIT} messages per ${SANDBOX_MSG_WINDOW / 60} minutes in sandbox.` }, from: 'system' }));
                     }
                     return;
@@ -434,21 +443,21 @@ class SocketService {
                         throw new Error("Invalid message format");
                     }
                 } catch {
-                    if (ws.readyState === ws.OPEN) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'SANDBOX_MESSAGE', 'data': { 'message': '...' } }` }, from: 'system' }));
                     }
                     return;
                 }
 
                 if (parsed.type !== SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE) {
-                    if (ws.readyState === ws.OPEN) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Unknown message type "${parsed.type}". Use type: "SANDBOX_MESSAGE".` }, from: 'system' }));
                     }
                     return;
                 }
 
                 // Echo the message back
-                if (ws.readyState === ws.OPEN) {
+                if (ws.readyState === WebSocket.OPEN) {
                     sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE, data: parsed.data, from: 'system' }));
                 }
             });
@@ -468,7 +477,7 @@ class SocketService {
         const socketList = this.socketStore.get(matchId);
         if(socketList && socketList.size){
             socketList.forEach(ws => {
-                if(ws.readyState === ws.OPEN){
+                if(ws.readyState === WebSocket.OPEN){
                     // console.log(`Broadcasting message to match ${matchId}:`, {type, data});
                     sendSocketMessage(ws, buildSocketEnvelope({ type, data, from: 'system' }));
                 }
@@ -604,7 +613,7 @@ class SocketService {
         if(sockets && sockets.size){
             sockets.forEach(socket => {
                 try {
-                    if (socket.readyState === socket.OPEN || socket.readyState === socket.CONNECTING) {
+                    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
                         socket.close(code, reason);
                         setTimeout(() => {
                             if (socket.readyState !== WebSocket.CLOSED) {

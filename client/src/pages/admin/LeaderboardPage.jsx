@@ -80,7 +80,6 @@ export default function LeaderboardPage() {
             </div>
             <div>
               <h2 className="font-bold text-base">Standings</h2>
-              <p className="text-xs text-muted-foreground">Loaded from round leaderboard endpoints</p>
             </div>
           </div>
 

@@ -35,7 +35,7 @@ function Section({ icon: Icon, title, subtitle, accent, children }) {
           </div>
           <div>
             <h2 className="font-bold text-base text-foreground font-heading">{title}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+            {subtitle ? <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p> : null}
           </div>
         </div>
       </div>
@@ -431,7 +431,6 @@ function OnboardSection() {
     <Section
       icon={UserPlus}
       title="Onboard Users"
-      subtitle="Create single or bulk accounts — credentials are emailed automatically"
       accent="bg-gradient-to-r from-blue-500 to-violet-500"
     >
       {/* Tabs */}
@@ -481,6 +480,7 @@ export default function AdminDashboard({ mode = "dashboard" }) {
   const [rounds, setRounds] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState("");
   const [matches, setMatches] = useState([]);
+  const [globalSearch, setGlobalSearch] = useState("");
   const [loadingRounds, setLoadingRounds] = useState(false);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [generatingMatches, setGeneratingMatches] = useState(false);
@@ -534,6 +534,16 @@ export default function AdminDashboard({ mode = "dashboard" }) {
       .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
   }, [rounds]);
 
+  const filteredCreatableRounds = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return creatableRounds;
+    return creatableRounds.filter((round) =>
+      [round?.roundName, round?.roundStatus]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q))
+    );
+  }, [creatableRounds, globalSearch]);
+
   const roundWiseMatches = useMemo(() => {
     const grouped = new Map();
 
@@ -565,6 +575,29 @@ export default function AdminDashboard({ mode = "dashboard" }) {
         matches: [...group.matches].sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()),
       }));
   }, [matches]);
+
+  const filteredRoundWiseMatches = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return roundWiseMatches;
+
+    return roundWiseMatches
+      .map((group) => {
+        const roundHit =
+          group.roundName?.toLowerCase().includes(q) ||
+          group.roundStatus?.toLowerCase().includes(q);
+
+        if (roundHit) return group;
+
+        const filteredMatches = (group.matches || []).filter((match) =>
+          [match.opponents, match.topic, match.matchStatus]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(q))
+        );
+
+        return { ...group, matches: filteredMatches };
+      })
+      .filter((group) => group.matches?.length > 0);
+  }, [globalSearch, roundWiseMatches]);
 
   const handleGenerateMatches = useCallback(async (e) => {
     e.preventDefault();
@@ -626,9 +659,6 @@ export default function AdminDashboard({ mode = "dashboard" }) {
         <h1 className="text-2xl font-black tracking-tight font-heading uppercase">
           {isUserPage ? "User Management" : "Admin Dashboard"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isUserPage ? "Manage participants and review registrations" : "Generate and review matches round by round"}
-        </p>
       </motion.div>
 
       {!isUserPage && (
@@ -636,7 +666,6 @@ export default function AdminDashboard({ mode = "dashboard" }) {
           <Section
             icon={Sparkles}
             title="Generate Matches"
-            subtitle="Pick a round in created status and trigger backend match generation"
             accent="bg-gradient-to-r from-fuchsia-500 to-violet-500"
           >
             <form onSubmit={handleGenerateMatches} className="flex flex-col gap-4 xl:flex-row xl:items-end">
@@ -653,7 +682,7 @@ export default function AdminDashboard({ mode = "dashboard" }) {
                     className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
                   >
                     <option value="">Select a round</option>
-                    {creatableRounds.map((round) => (
+                    {filteredCreatableRounds.map((round) => (
                       <option key={round._id} value={round._id}>
                         {round.roundName} ({round.roundStatus})
                       </option>
@@ -675,28 +704,37 @@ export default function AdminDashboard({ mode = "dashboard" }) {
               </div>
             </form>
 
-            {creatableRounds.length === 0 && !loadingRounds && (
+            {filteredCreatableRounds.length === 0 && !loadingRounds && (
               <p className="mt-3 text-sm text-muted-foreground">No rounds in created status are available for match generation.</p>
             )}
           </Section>
 
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              placeholder="Search rounds, opponents, topics, status..."
+              className="pl-9"
+            />
+          </div>
+
           <Section
             icon={Swords}
             title="Round-wise Matches"
-            subtitle="Matches grouped by round and sorted by round creation time"
             accent="bg-gradient-to-r from-amber-500 to-orange-500"
           >
             {loadingMatches ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading matches…
               </div>
-            ) : roundWiseMatches.length === 0 ? (
+            ) : filteredRoundWiseMatches.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border px-4 py-8 text-sm text-muted-foreground text-center">
                 No matches generated yet.
               </div>
             ) : (
               <div className="space-y-6">
-                {roundWiseMatches.map((group) => (
+                {filteredRoundWiseMatches.map((group) => (
                   <div key={group.roundId} className="overflow-hidden rounded-2xl border border-border bg-white">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-slate-50 px-4 py-3">
                       <div>
@@ -739,7 +777,6 @@ export default function AdminDashboard({ mode = "dashboard" }) {
           <Section
             icon={AlertCircle}
             title="System Reset"
-            subtitle="Run controlled reset actions from admin dashboard"
             accent="bg-gradient-to-r from-rose-500 to-red-500"
           >
             <div className="space-y-3">
@@ -786,7 +823,6 @@ export default function AdminDashboard({ mode = "dashboard" }) {
             <Section
               icon={Users}
               title="Find Users"
-              subtitle="Filter by role and account status — results are live from the database"
               accent="bg-gradient-to-r from-emerald-500 to-teal-500"
             >
               <UserFilterTable />

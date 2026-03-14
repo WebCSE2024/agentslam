@@ -1,11 +1,13 @@
 import bullmq from 'bullmq';
 import matchController from '../controllers/match.controller.js';
 import matchModel from '../models/match.model.js';
+import { logInfo } from '../utils/logger.js';
 const { Queue, Worker } = bullmq;
 
 class BullMQService {
 
     constructor() {
+        // console.log("Entering file with: ", process.env.REDIS_URI)
         this.resultqueue = new Queue('result-req', {
             connection: {
                 url: process.env.REDIS_URI
@@ -73,15 +75,15 @@ class BullMQService {
     init() {
 
         this.resultWorker.on("completed", (job) => {
-        console.log(`Job ${job.id} completed`);
+            logInfo(`Job ${job.id} completed`);
         });
 
         this.resultWorker.on("failed", (job, err) => {
-        console.error(`Job ${job?.id} failed:`, err);
+            console.error(`Job ${job?.id} failed:`, err);
         });
 
         this.resultWorker.on("error", (err) => {
-        console.error("Worker error:", err);
+            console.error("Worker error:", err);
         });
 
     }
