@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { MATCH_STATUS, SOCKET_MESSAGE_TYPE, USER_ROLE } from '../utils/enum.js';
+import { MATCH_STATUS, SOCKET_MESSAGE_TYPE, SOCKET_SENDER, USER_ROLE } from '../utils/enum.js';
 import bullmqService from './bullmq.service.js';
 import { sandboxSocketRateLimit, socketRateLimit } from '../middlewares/socketratelimit.middleware.js';
 import redisClient from '../configs/redis.config.js';
@@ -35,19 +35,23 @@ const formatMatchState = (matchState) => {
 }
 
 
-const buildSocketEnvelope = ({ type, data = {}, from = 'system' }) => {
-    const sender = from === 'team1' || from === 'team2' ? from : 'system';
+const buildSocketEnvelope = ({ type, data = {}, from = SOCKET_SENDER.SYSTEM }) => {
+    const validSenders = Object.values(SOCKET_SENDER);
+    const sender = validSenders.includes(from) ? from : SOCKET_SENDER.SYSTEM;
     const timestamp = new Date().toISOString();
     return {
         type,
         from: sender,
         timestamp,
-        data: {
-            ...data,
-            from: sender,
-            timestamp,
-        },
+        data: { ...data },
     };
+};
+
+const resolveSocketSender = (value) => {
+    if (value === SOCKET_SENDER.TEAM1) return SOCKET_SENDER.TEAM1;
+    if (value === SOCKET_SENDER.TEAM2) return SOCKET_SENDER.TEAM2;
+    if (value === SOCKET_SENDER.ADMIN) return SOCKET_SENDER.ADMIN;
+    return SOCKET_SENDER.SYSTEM;
 };
 
 const sendSocketMessage = (ws, payload) => {
@@ -242,7 +246,7 @@ class SocketService {
                             data: {
                                 message: `${ws.user?.team || 'User'} joined the match.`,
                             },
-                            from: 'system',
+                            from: SOCKET_SENDER.SYSTEM,
                         }));
                     }
                 });
@@ -258,12 +262,12 @@ class SocketService {
                     data: {
                         message: welcomeMsg
                     },
-                    from: 'system',
+                    from: SOCKET_SENDER.SYSTEM,
                 }));
                 
                 const matchState = await redisClient.hgetall(`match:${ws.matchId}`);
                 const formattedMatchState = formatMatchState(matchState);
-                sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.MATCH_STATE, data: formattedMatchState, from: 'system' }));
+                sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.MATCH_STATE, data: formattedMatchState, from: SOCKET_SENDER.SYSTEM }));
 
                 if(matchState.status === MATCH_STATUS.STARTED){
                     const prevConverations = await matchModel.findById(ws.matchId).lean().select("conversations").exec();
@@ -272,13 +276,13 @@ class SocketService {
                         sendSocketMessage(ws, buildSocketEnvelope({
                             type: SOCKET_MESSAGE_TYPE.PREVIOUS_MESSAGE,
                             data: { message: `Match is already live! Here are the previous conversations.`, conversations: prevConverations.conversations },
-                            from: 'system',
+                            from: SOCKET_SENDER.SYSTEM,
                         }));
                     }else{
                         sendSocketMessage(ws, buildSocketEnvelope({
                             type: SOCKET_MESSAGE_TYPE.PREVIOUS_MESSAGE,
                             data: { message: `Match is already live! No conversations yet.` },
-                            from: 'system',
+                            from: SOCKET_SENDER.SYSTEM,
                         }));
                     }
                 }
@@ -289,7 +293,7 @@ class SocketService {
                 const allowed = await socketRateLimit(ws.user.id, SOCKET_MESSAGE_LIMIT, SOCKET_WINDOW_TIME);
 
                 if (!allowed) {
-                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Too many messages!` }, from: 'system' }));
+                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Too many messages!` }, from: SOCKET_SENDER.SYSTEM }));
                     return;
                 }
 
@@ -309,28 +313,28 @@ class SocketService {
                     }
                 } catch {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid message format.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid message format.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 if(matchState.status !== MATCH_STATUS.STARTED){
                     if(ws.readyState === WebSocket.OPEN){
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Match is not currently accepting message.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Match is not currently accepting message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 if(ws.user.team === 'viewer'){
                     if(ws.readyState === WebSocket.OPEN){
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `You can't send message.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `You can't send message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 if(ws.user.team !== currTurn && ws.user.role !== USER_ROLE.ADMIN){
                     if(ws.readyState === WebSocket.OPEN){
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `It's not your turn! Please wait for your turn.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `It's not your turn! Please wait for your turn.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -339,7 +343,7 @@ class SocketService {
 
                 if(textMessage && textMessage.length > MAX_CHAT_MESSAGE_SIZE){
                     if(ws.readyState === WebSocket.OPEN){
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -362,7 +366,7 @@ class SocketService {
                         })
                     }else{
                         if(ws.readyState === WebSocket.OPEN){
-                            sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Cannot send debate messages when match is not live.` }, from: 'system' }));
+                            sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Cannot send debate messages when match is not live.` }, from: SOCKET_SENDER.SYSTEM }));
                         }
                     }
                 }
@@ -373,13 +377,13 @@ class SocketService {
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE,
                                 data: { message: textMessage },
-                                from: ws.user.team,
+                                from: resolveSocketSender(ws.user.team),
                             }));
                         }else if(socket === ws && socket.readyState === WebSocket.OPEN){
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.INFO,
                                 data: { message: 'acknowledged' },
-                                from: 'system',
+                                from: SOCKET_SENDER.SYSTEM,
                             }));
                         }
                     })
@@ -413,7 +417,7 @@ class SocketService {
                                 data: {
                                     message: `${ws.user.team} has left the match.`,
                                 },
-                                from: 'system',
+                                from: SOCKET_SENDER.SYSTEM,
                             }));
                         }
                     })
@@ -441,14 +445,14 @@ class SocketService {
                     data: {
                         message: `Welcome to the AgentSlam Sandbox, ${ws.user.username}. Send messages using: { 'type': 'sandbox-message', 'data': { 'message': 'your message' } }. This session will auto-disconnect in 10 minutes.`
                     },
-                    from: 'system',
+                    from: SOCKET_SENDER.SYSTEM,
                 }));
             }
 
             // Auto-disconnect after SANDBOX_DURATION
             const autoDisconnect = setTimeout(() => {
                 if (ws.readyState === WebSocket.OPEN) {
-                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: 'Sandbox session expired. You have been disconnected after 10 minutes.' }, from: 'system' }));
+                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: 'Sandbox session expired. You have been disconnected after 10 minutes.' }, from: SOCKET_SENDER.SYSTEM }));
                     ws.close(1000, 'Session timeout');
                 }
             }, SANDBOX_DURATION);
@@ -458,7 +462,7 @@ class SocketService {
                 const allowed = await sandboxSocketRateLimit(`sandbox:${ws.user.id}`, SANDBOX_MSG_LIMIT, SANDBOX_MSG_WINDOW);
                 if (!allowed) {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded. Max ${SANDBOX_MSG_LIMIT} messages per ${SANDBOX_MSG_WINDOW / 60} minutes in sandbox.` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded. Max ${SANDBOX_MSG_LIMIT} messages per ${SANDBOX_MSG_WINDOW / 60} minutes in sandbox.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -471,21 +475,21 @@ class SocketService {
                     }
                 } catch {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'SANDBOX_MESSAGE', 'data': { 'message': '...' } }` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'SANDBOX_MESSAGE', 'data': { 'message': '...' } }` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 if (parsed.type !== SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE) {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Unknown message type "${parsed.type}". Use type: "SANDBOX_MESSAGE".` }, from: 'system' }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Unknown message type "${parsed.type}". Use type: "SANDBOX_MESSAGE".` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 // Echo the message back
                 if (ws.readyState === WebSocket.OPEN) {
-                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE, data: parsed.data, from: 'system' }));
+                    sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE, data: parsed.data, from: SOCKET_SENDER.SYSTEM }));
                 }
             });
 
@@ -506,7 +510,7 @@ class SocketService {
             socketList.forEach(ws => {
                 if(ws.readyState === WebSocket.OPEN){
                     // console.log(`Broadcasting message to match ${matchId}:`, {type, data});
-                    sendSocketMessage(ws, buildSocketEnvelope({ type, data, from: 'system' }));
+                    sendSocketMessage(ws, buildSocketEnvelope({ type, data, from: SOCKET_SENDER.SYSTEM }));
                 }
             })
         }
@@ -520,7 +524,7 @@ class SocketService {
     setMatchTimeout = (matchId, interval) => {
         const timer = setTimeout(async ()=>{
 
-            this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `Time's up!`, from: 'system' });
+            this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `Time's up!` });
 
             try {
                 const matchState = await redisClient.hgetall(`match:${matchId}`);
@@ -541,7 +545,7 @@ class SocketService {
                 console.error("Error occurred while updating match status:", error);
             }
 
-            this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_FINISH, { message: `The match has ended!`, from: 'system' });
+            this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_FINISH, { message: `The match has ended!` });
 
             //bullmq activities
             try {

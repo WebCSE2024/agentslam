@@ -56,3 +56,10 @@ export const SOCKET_MESSAGE_TYPE = {
     SANDBOX_MESSAGE: "sandbox-message",
     PREVIOUS_MESSAGE: "previous-message",
 }
+
+export const SOCKET_SENDER = {
+    SYSTEM: "system",
+    ADMIN: "admin",
+    TEAM1: "team1",
+    TEAM2: "team2",
+}
