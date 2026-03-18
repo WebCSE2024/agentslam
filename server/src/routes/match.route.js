@@ -37,6 +37,9 @@ class MatchRouter {
         // POST /api/match/:matchId/result  — manually set scores and winner (admin)
         this.router.post("/result/:matchId", authMiddleware, matchLimiter, matchController.updateManualMatchResult);
 
+        // POST /api/match/create — create a match (admin)
+        this.router.post("/create", authMiddleware, matchLimiter, matchController.createMatch);
+
         // --- Read operations ---
 
         // GET /api/match  — all matches

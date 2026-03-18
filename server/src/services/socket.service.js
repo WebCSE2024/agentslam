@@ -200,6 +200,12 @@ class SocketService {
                 const team1Id = matchState.team1?.split(":")[0];
                 const team2Id = matchState.team2?.split(":")[0]; 
 
+                if(userId !== team1Id && userId !== team2Id && decoded.role !== USER_ROLE.ADMIN){
+                    socket.write("HTTP/1.1 403 Forbidden. Please visit the public match page to view the discussion.\r\n\r\n");
+                    socket.destroy();
+                    return;
+                }
+
                 this.wss.handleUpgrade(request, socket, head, (ws) => {
                     ws.user = {
                         id: userId,
@@ -226,6 +232,21 @@ class SocketService {
 
         this.wss.on('connection', async (ws) => {
             logInfo(`WebSocket client connected successfully. Match ID: ${ws.matchId}, User Name: ${ws.user?.username}, Role: ${ws.user?.role}.`);
+
+            const joinedMatchSockets = this.getSocketsForMatch(ws.matchId);
+            if (joinedMatchSockets && joinedMatchSockets.size) {
+                joinedMatchSockets.forEach((socket) => {
+                    if (socket.readyState === WebSocket.OPEN && socket !== ws) {
+                        sendSocketMessage(socket, buildSocketEnvelope({
+                            type: SOCKET_MESSAGE_TYPE.USER_JOINED,
+                            data: {
+                                message: `${ws.user?.team || 'User'} joined the match.`,
+                            },
+                            from: 'system',
+                        }));
+                    }
+                });
+            }
             
             if (ws.readyState === WebSocket.OPEN) {
                 let welcomeMsg = `Welcome ${ws.user.username} to AgentSlam! You are connected as ${ws.user.team}.`
@@ -380,16 +401,22 @@ class SocketService {
                     sockets.delete(ws);
                 }
 
-                if(ws.user?.team !== 'viewer' || ws.user?.role === USER_ROLE.ADMIN){
-                    reason = reason.toString() || "No reason provided";
-                    logInfo(`WebSocket client disconnected. Match ID: ${matchId}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
-                    if(sockets && sockets.size){
-                        sockets.forEach(socket => {
-                            if(socket.readyState === WebSocket.OPEN){
-                                sendSocketMessage(socket, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.INFO, data: { message: `${username} has left the match.` }, from: 'system' }));
-                            }
-                        })
-                    }
+                reason = reason.toString() || "No reason provided";
+                logInfo(`WebSocket client disconnected. Match ID: ${matchId}, Team: ${ws.user.team}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
+
+                const remainingMatchSockets = this.getSocketsForMatch(matchId);
+                if(remainingMatchSockets && remainingMatchSockets.size){
+                    remainingMatchSockets.forEach(socket => {
+                        if(socket.readyState === WebSocket.OPEN && socket != ws){
+                            sendSocketMessage(socket, buildSocketEnvelope({
+                                type: SOCKET_MESSAGE_TYPE.USER_LEFT,
+                                data: {
+                                    message: `${ws.user.team} has left the match.`,
+                                },
+                                from: 'system',
+                            }));
+                        }
+                    })
                 }
             })
 

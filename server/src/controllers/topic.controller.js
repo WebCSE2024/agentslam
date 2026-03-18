@@ -3,12 +3,13 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/apierror.js";
 import ApiResponse from "../utils/apiresponse.js";
 import { logInfo } from "../utils/logger.js";
+import { USER_ROLE } from "../utils/enum.js";
 
 class TopicController{
 
     createTopic = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
             }
 
@@ -30,7 +31,7 @@ class TopicController{
 
     createTopicsBatch = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -75,7 +76,7 @@ class TopicController{
     })
 
     updateTopic = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -102,7 +103,7 @@ class TopicController{
     })
 
     deleteTopic = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 

@@ -1,3 +1,5 @@
+import { logInfo } from "./logger.js";
+
 class ApiError extends Error{
     constructor(statusCode, message = "Something Went Wrong!", stack = "", errors = []){
         super(message)

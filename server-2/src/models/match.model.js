@@ -1,7 +1,6 @@
 import mongoose from 'mongoose'
 import { MATCH_STATUS, TEAM_NAME, TOPIC_TYPE } from '../utils/enum.js'
 
-const MAX_MESSAGE_SIZE = parseInt(process.env.SOCKET_MAX_CHAT_MESSAGE_SIZE)+100 || 2600;    
 const matchSchema = new mongoose.Schema({
     opponents: {
         team1: {
@@ -78,8 +77,6 @@ const matchSchema = new mongoose.Schema({
             message: {
                 type: String,
                 required: true,
-                trim: true,
-                maxlength: MAX_MESSAGE_SIZE,
             },
             timestamp: {
                 type: Date,

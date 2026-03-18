@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,6 +214,10 @@ export default function LoginPage() {
               ) : (
                 "Sign in"
               )}
+            </Button>
+
+            <Button type="button" variant="outline" className="w-full h-11 text-sm font-semibold" asChild>
+              <Link to="/public/matches">See match updates</Link>
             </Button>
           </form>
 

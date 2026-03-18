@@ -11,15 +11,11 @@ class RoundController{
 
     loadLeaderBoard = async()=>{
 
-        const leaderBoardPresent = await redisClient.exists("leaderboard");
-        if(!leaderBoardPresent){
-
-            const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name tournamentPoints").sort({ tournamentPoints: -1 });
-            for(const team of teams){
-                await redisClient.zadd("leaderboard", Number(team.tournamentPoints) || 0, `${team._id}:${team.name}`)
-            }
-            logInfo(`Leaderboard loaded in Redis successfully. Entries: ${teams.length}.`);
+        const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name tournamentPoints");
+        for(const team of teams){
+            await redisClient.zadd("leaderboard", Number(team.tournamentPoints) || 0, `${team._id}:${team.name}`)
         }
+        logInfo(`Leaderboard loaded in Redis successfully. Entries: ${teams.length}.`);
 
         return;
     }
@@ -29,8 +25,12 @@ class RoundController{
         if(!req.user || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
-        
-        await redisClient.del("leaderboard");
+
+        const ongoingRound = await roundModel.countDocuments({ roundStatus: ROUND_STATUS.ONGOING });
+
+        if(ongoingRound){
+            throw new ApiError(400, "Cannot load leaderboard while a round is ongoing");
+        }
         await this.loadLeaderBoard();
         logInfo("Leaderboard refreshed in Redis successfully.");
 
@@ -39,7 +39,7 @@ class RoundController{
 
     createRound = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -59,13 +59,13 @@ class RoundController{
         });
         logInfo(`Round created successfully. Name: ${round.roundName}, Status: ${round.roundStatus}.`);
 
-        this.loadLeaderBoard();
+        await this.loadLeaderBoard();
 
         return new ApiResponse(201, round, "Round created successfully")
     })
 
     updateRound = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
         
@@ -87,7 +87,7 @@ class RoundController{
     })
 
     updateRoundStatus = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
         
@@ -179,7 +179,7 @@ class RoundController{
     })
 
     deleteRound = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
         

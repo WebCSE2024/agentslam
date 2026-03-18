@@ -9,6 +9,8 @@ import RoundPage from "@/pages/admin/RoundPage";
 import LeaderboardPage from "@/pages/admin/LeaderboardPage";
 import CommonMatchesPage from "@/pages/common/CommonMatchesPage";
 import MatchDetailPage from "@/pages/common/MatchDetailPage";
+import PublicMatchesPage from "@/pages/public/PublicMatchesPage";
+import PublicMatchConversationPage from "@/pages/public/PublicMatchConversationPage";
 
 export default function App() {
   return (
@@ -37,6 +39,8 @@ export default function App() {
 
         {/* ── Public ── */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/public/matches" element={<PublicMatchesPage />} />
+        <Route path="/public/matches/:matchId" element={<PublicMatchConversationPage />} />
 
         {/* ── Fallback ── */}
         <Route path="*" element={<Navigate to="/" replace />} />

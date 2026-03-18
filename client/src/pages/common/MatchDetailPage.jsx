@@ -5,11 +5,15 @@ import { Play, Pause, RotateCcw, MessageSquareText, Radio, Timer, Zap } from "lu
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { UserContext } from "@/contexts/UserContext";
-import { activateMatch, getMatchInfo, pauseMatch, resumeMatch, startMatch } from "@/api/matchApi";
+import { activateMatch, getMatchInfo, pauseMatch, resumeMatch, startMatch, updateMatchResult } from "@/api/matchApi";
 
 const SOCKET_MESSAGE_TYPE = {
   WELCOME: "welcome",
+  USER_JOINED: "user-joined",
+  USER_LEFT: "user-left",
   INFO: "info",
   ERROR: "error",
   MATCH_UPDATE: "match-update",
@@ -69,6 +73,8 @@ export default function MatchDetailPage() {
   const [messages, setMessages] = useState([]);
   const [actionBusy, setActionBusy] = useState(null);
   const [timeLeftMs, setTimeLeftMs] = useState(0);
+  const [resultBusy, setResultBusy] = useState(false);
+  const [resultForm, setResultForm] = useState({ team1: "", team2: "", winner: "" });
 
   const wsRef = useRef(null);
   const scrollRef = useRef(null);
@@ -103,6 +109,14 @@ export default function MatchDetailPage() {
   useEffect(() => {
     loadMatchInfo();
   }, [loadMatchInfo]);
+
+  useEffect(() => {
+    setResultForm((prev) => ({
+      team1: Number.isFinite(matchInfo?.scores?.team1) ? String(matchInfo.scores.team1) : "",
+      team2: Number.isFinite(matchInfo?.scores?.team2) ? String(matchInfo.scores.team2) : "",
+      winner: prev.winner,
+    }));
+  }, [matchInfo?.scores?.team1, matchInfo?.scores?.team2]);
 
   useEffect(() => {
     if (!matchId) return;
@@ -158,6 +172,16 @@ export default function MatchDetailPage() {
       }
 
       if (type === SOCKET_MESSAGE_TYPE.INFO && text === "acknowledged") {
+        return;
+      }
+
+      if (type === SOCKET_MESSAGE_TYPE.USER_JOINED || type === SOCKET_MESSAGE_TYPE.USER_LEFT) {
+        appendMessage({
+          type,
+          from: "system",
+          timestamp,
+          text: text || (type === SOCKET_MESSAGE_TYPE.USER_JOINED ? "A user joined the match." : "A user left the match."),
+        });
         return;
       }
 
@@ -243,6 +267,48 @@ export default function MatchDetailPage() {
     }
   }, [loadMatchInfo, matchId]);
 
+  const onResultFieldChange = useCallback((field, value) => {
+    setResultForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const submitInlineResult = useCallback(async () => {
+    if (!matchId) return;
+
+    const team1 = Number(resultForm.team1);
+    const team2 = Number(resultForm.team2);
+    const winner = resultForm.winner;
+
+    if (!Number.isFinite(team1) || !Number.isFinite(team2)) {
+      toast.error("Please enter valid numeric scores for both teams.");
+      return;
+    }
+
+    if (team1 < 0 || team2 < 0) {
+      toast.error("Scores cannot be negative.");
+      return;
+    }
+
+    if (winner !== "team1" && winner !== "team2") {
+      toast.error("Please select a winner.");
+      return;
+    }
+
+    setResultBusy(true);
+    try {
+      const res = await updateMatchResult(matchId, {
+        scores: { team1, team2 },
+        winner,
+      });
+      toast.success(res?.message || "Match result updated successfully.");
+      await loadMatchInfo();
+      setResultForm({ team1: "", team2: "", winner: "" });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update match result.");
+    } finally {
+      setResultBusy(false);
+    }
+  }, [loadMatchInfo, matchId, resultForm.team1, resultForm.team2, resultForm.winner]);
+
   const effectiveStatus = matchState?.status || matchInfo?.matchStatus;
   const currentTurn =
     effectiveStatus === "started" && (matchState?.turn === "team1" || matchState?.turn === "team2")
@@ -251,6 +317,7 @@ export default function MatchDetailPage() {
   const canStart = effectiveStatus === "active";
   const canPause = effectiveStatus === "started";
   const canResume = effectiveStatus === "paused";
+  const canShowInlineResultForm = isAdmin && (effectiveStatus === "started" || effectiveStatus === "paused");
 
   const roleByTeam = useMemo(() => {
     const prosTeam = matchState?.pros;
@@ -290,6 +357,61 @@ export default function MatchDetailPage() {
             {matchInfo?.topic?.description || matchState?.description || "No description available."}
           </p>
         </div>
+
+        {canShowInlineResultForm && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-900">Update Match Result</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="detail-score-team1">Score: {team1Name} (team1)</Label>
+                <Input
+                  id="detail-score-team1"
+                  type="number"
+                  min="0"
+                  value={resultForm.team1}
+                  onChange={(e) => onResultFieldChange("team1", e.target.value)}
+                  placeholder="Enter score"
+                  disabled={resultBusy}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="detail-score-team2">Score: {team2Name} (team2)</Label>
+                <Input
+                  id="detail-score-team2"
+                  type="number"
+                  min="0"
+                  value={resultForm.team2}
+                  onChange={(e) => onResultFieldChange("team2", e.target.value)}
+                  placeholder="Enter score"
+                  disabled={resultBusy}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="detail-winner-select">Winner</Label>
+              <select
+                id="detail-winner-select"
+                className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                value={resultForm.winner}
+                onChange={(e) => onResultFieldChange("winner", e.target.value)}
+                disabled={resultBusy}
+              >
+                <option value="">Select winner</option>
+                <option value="team1">{team1Name} (team1)</option>
+                <option value="team2">{team2Name} (team2)</option>
+              </select>
+            </div>
+
+            <div className="pt-1">
+              <Button type="button" onClick={submitInlineResult} disabled={resultBusy}>
+                {resultBusy ? "Saving..." : "Save Result"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {isAdmin && (
           <div className="flex flex-wrap gap-3 pt-1">

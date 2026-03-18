@@ -7,6 +7,9 @@ export const getAllMatchesAdmin = () => axiosInstance.get("/match/admin");
 export const generateMatches = (currRoundId) =>
 	axiosInstance.post("/match/generate", { currRoundId });
 
+export const createMatch = ({ team1Id, team2Id, topicId, roundId }) =>
+	axiosInstance.post("/match/create", { team1Id, team2Id, topicId, roundId });
+
 export const activateMatch = (matchId) =>
 	axiosInstance.post(`/match/activate/${matchId}`);
 

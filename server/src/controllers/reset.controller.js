@@ -13,7 +13,7 @@ class ResetController {
 
     resetAll = asyncHandler(async (req, res) => {
 
-            if(!req.user.role || req.user.role !== "admin"){
+            if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
                 throw new ApiError(403, "Forbidden");
             }
 
@@ -37,7 +37,7 @@ class ResetController {
 
     resetTournament = asyncHandler(async (req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 

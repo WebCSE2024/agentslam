@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { onboardUser, onboardUsersBatch } from "@/api/onboarding";
 import { getUsersByFilter, resetUserPassword, changeStatus } from "@/api/userApi";
 import { getRounds } from "@/api/roundApi";
-import { generateMatches, getAllMatchesAdmin } from "@/api/matchApi";
+import { createMatch, generateMatches, getAllMatchesAdmin } from "@/api/matchApi";
+import { getTopicsByRound } from "@/api/topicApi";
 import { resetAllSystem, resetTournament } from "@/api/resetApi";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -485,6 +486,13 @@ export default function AdminDashboard({ mode = "dashboard" }) {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [generatingMatches, setGeneratingMatches] = useState(false);
   const [resettingType, setResettingType] = useState(null);
+  const [matchCreationMode, setMatchCreationMode] = useState("round");
+  const [manualMatchForm, setManualMatchForm] = useState({ roundId: "", team1Id: "", team2Id: "", topicId: "" });
+  const [manualUsers, setManualUsers] = useState([]);
+  const [manualTopics, setManualTopics] = useState([]);
+  const [loadingManualUsers, setLoadingManualUsers] = useState(false);
+  const [loadingManualTopics, setLoadingManualTopics] = useState(false);
+  const [creatingManualMatch, setCreatingManualMatch] = useState(false);
 
   const loadRounds = useCallback(async () => {
     setLoadingRounds(true);
@@ -528,9 +536,55 @@ export default function AdminDashboard({ mode = "dashboard" }) {
     loadMatches();
   }, [loadRounds, loadMatches]);
 
+  const loadManualUsers = useCallback(async () => {
+    setLoadingManualUsers(true);
+    try {
+      const res = await getUsersByFilter({ role: "user", status: "active" });
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setManualUsers(data);
+    } catch {
+      setManualUsers([]);
+    } finally {
+      setLoadingManualUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode === "user") return;
+    loadManualUsers();
+  }, [loadManualUsers, mode]);
+
+  const loadManualTopics = useCallback(async (roundId) => {
+    if (!roundId) {
+      setManualTopics([]);
+      return;
+    }
+
+    setLoadingManualTopics(true);
+    try {
+      const res = await getTopicsByRound(roundId);
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setManualTopics(data);
+    } catch {
+      setManualTopics([]);
+    } finally {
+      setLoadingManualTopics(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadManualTopics(manualMatchForm.roundId);
+  }, [loadManualTopics, manualMatchForm.roundId]);
+
   const creatableRounds = useMemo(() => {
     return [...rounds]
       .filter((round) => round?.roundStatus === "created")
+      .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
+  }, [rounds]);
+
+  const manualCreatableRounds = useMemo(() => {
+    return [...rounds]
+      .filter((round) => round?.roundStatus !== "completed")
       .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
   }, [rounds]);
 
@@ -618,6 +672,48 @@ export default function AdminDashboard({ mode = "dashboard" }) {
     }
   }, [selectedRoundId, loadMatches, loadRounds]);
 
+  const onManualFieldChange = useCallback((field, value) => {
+    setManualMatchForm((prev) => {
+      if (field === "roundId") {
+        return {
+          roundId: value,
+          team1Id: "",
+          team2Id: "",
+          topicId: "",
+        };
+      }
+      return { ...prev, [field]: value };
+    });
+  }, []);
+
+  const handleCreateManualMatch = useCallback(async (e) => {
+    e.preventDefault();
+
+    const { roundId, team1Id, team2Id, topicId } = manualMatchForm;
+
+    if (!roundId || !team1Id || !team2Id || !topicId) {
+      toast.error("Please select round, both teams, and a topic.");
+      return;
+    }
+
+    if (team1Id === team2Id) {
+      toast.error("Team 1 and Team 2 must be different users.");
+      return;
+    }
+
+    setCreatingManualMatch(true);
+    try {
+      const res = await createMatch({ team1Id, team2Id, topicId, roundId });
+      toast.success(res?.message || "Manual match created successfully.");
+      setManualMatchForm({ roundId, team1Id: "", team2Id: "", topicId: "" });
+      await Promise.all([loadRounds(), loadMatches()]);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to create manual match.");
+    } finally {
+      setCreatingManualMatch(false);
+    }
+  }, [loadMatches, loadRounds, manualMatchForm]);
+
   const handleResetTournament = useCallback(async () => {
     const confirmed = window.confirm("Reset tournament data? This action cannot be undone.");
     if (!confirmed) return;
@@ -668,45 +764,176 @@ export default function AdminDashboard({ mode = "dashboard" }) {
             title="Generate Matches"
             accent="bg-gradient-to-r from-fuchsia-500 to-violet-500"
           >
-            <form onSubmit={handleGenerateMatches} className="flex flex-col gap-4 xl:flex-row xl:items-end">
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="generate-round" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Select Round
-                </Label>
-                <div className="relative">
-                  <select
-                    id="generate-round"
-                    value={selectedRoundId}
-                    onChange={(e) => setSelectedRoundId(e.target.value)}
-                    disabled={loadingRounds || generatingMatches || creatableRounds.length === 0}
-                    className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-                  >
-                    <option value="">Select a round</option>
-                    {filteredCreatableRounds.map((round) => (
-                      <option key={round._id} value={round._id}>
-                        {round.roundName} ({round.roundStatus})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                </div>
+            <div className="space-y-4">
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMatchCreationMode("round")}
+                  className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wide rounded-md transition-colors ${
+                    matchCreationMode === "round" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Generate Per Round
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMatchCreationMode("manual")}
+                  className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wide rounded-md transition-colors ${
+                    matchCreationMode === "manual" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Create Manually
+                </button>
               </div>
 
-              <div className="flex gap-3">
-                <Button type="submit" disabled={!selectedRoundId || generatingMatches || loadingRounds} className="h-10 gap-2 font-semibold">
-                  {generatingMatches
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                    : <><Sparkles className="h-4 w-4" /> Generate Matches</>}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => { loadRounds(); loadMatches(); }} disabled={loadingRounds || loadingMatches} className="h-10 gap-2">
-                  <RefreshCw className={`h-4 w-4 ${(loadingRounds || loadingMatches) ? "animate-spin" : ""}`} /> Refresh
-                </Button>
-              </div>
-            </form>
+              {matchCreationMode === "round" ? (
+                <>
+                  <form onSubmit={handleGenerateMatches} className="flex flex-col gap-4 xl:flex-row xl:items-end">
+                    <div className="flex-1 space-y-1.5">
+                      <Label htmlFor="generate-round" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Select Round
+                      </Label>
+                      <div className="relative">
+                        <select
+                          id="generate-round"
+                          value={selectedRoundId}
+                          onChange={(e) => setSelectedRoundId(e.target.value)}
+                          disabled={loadingRounds || generatingMatches || creatableRounds.length === 0}
+                          className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                        >
+                          <option value="">Select a round</option>
+                          {filteredCreatableRounds.map((round) => (
+                            <option key={round._id} value={round._id}>
+                              {round.roundName} ({round.roundStatus})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
 
-            {filteredCreatableRounds.length === 0 && !loadingRounds && (
-              <p className="mt-3 text-sm text-muted-foreground">No rounds in created status are available for match generation.</p>
-            )}
+                    <div className="flex gap-3">
+                      <Button type="submit" disabled={!selectedRoundId || generatingMatches || loadingRounds} className="h-10 gap-2 font-semibold">
+                        {generatingMatches
+                          ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                          : <><Sparkles className="h-4 w-4" /> Generate Matches</>}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => { loadRounds(); loadMatches(); }} disabled={loadingRounds || loadingMatches} className="h-10 gap-2">
+                        <RefreshCw className={`h-4 w-4 ${(loadingRounds || loadingMatches) ? "animate-spin" : ""}`} /> Refresh
+                      </Button>
+                    </div>
+                  </form>
+
+                  {filteredCreatableRounds.length === 0 && !loadingRounds && (
+                    <p className="text-sm text-muted-foreground">No rounds in created status are available for match generation.</p>
+                  )}
+                </>
+              ) : (
+                <form onSubmit={handleCreateManualMatch} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="manual-round" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Round
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="manual-round"
+                        value={manualMatchForm.roundId}
+                        onChange={(e) => onManualFieldChange("roundId", e.target.value)}
+                        disabled={loadingRounds || creatingManualMatch || manualCreatableRounds.length === 0}
+                        className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                      >
+                        <option value="">Select round</option>
+                        {manualCreatableRounds.map((round) => (
+                          <option key={round._id} value={round._id}>
+                            {round.roundName}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="manual-team1" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Team 1
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="manual-team1"
+                        value={manualMatchForm.team1Id}
+                        onChange={(e) => onManualFieldChange("team1Id", e.target.value)}
+                        disabled={loadingManualUsers || creatingManualMatch || manualUsers.length === 0}
+                        className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                      >
+                        <option value="">Select team 1</option>
+                        {manualUsers.map((u) => (
+                          <option key={u._id} value={u._id}>{u.name} ({u.admissionNumber || u.email})</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="manual-team2" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Team 2
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="manual-team2"
+                        value={manualMatchForm.team2Id}
+                        onChange={(e) => onManualFieldChange("team2Id", e.target.value)}
+                        disabled={loadingManualUsers || creatingManualMatch || manualUsers.length === 0}
+                        className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                      >
+                        <option value="">Select team 2</option>
+                        {manualUsers.map((u) => (
+                          <option key={u._id} value={u._id}>{u.name} ({u.admissionNumber || u.email})</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="manual-topic" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Topic
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="manual-topic"
+                        value={manualMatchForm.topicId}
+                        onChange={(e) => onManualFieldChange("topicId", e.target.value)}
+                        disabled={!manualMatchForm.roundId || loadingManualTopics || creatingManualMatch || manualTopics.length === 0}
+                        className="h-10 w-full appearance-none rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                      >
+                        <option value="">Select topic</option>
+                        {manualTopics.map((topic) => (
+                          <option key={topic._id} value={topic._id}>{topic.title}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2 xl:col-span-4 flex gap-3">
+                    <Button
+                      type="submit"
+                      disabled={creatingManualMatch || !manualMatchForm.roundId || !manualMatchForm.team1Id || !manualMatchForm.team2Id || !manualMatchForm.topicId}
+                      className="h-10 gap-2 font-semibold"
+                    >
+                      {creatingManualMatch
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating…</>
+                        : <><Sparkles className="h-4 w-4" /> Create Match</>}
+                    </Button>
+
+                    <Button type="button" variant="outline" onClick={() => { loadRounds(); loadMatches(); loadManualUsers(); }} disabled={loadingRounds || loadingMatches || loadingManualUsers} className="h-10 gap-2">
+                      <RefreshCw className={`h-4 w-4 ${(loadingRounds || loadingMatches || loadingManualUsers) ? "animate-spin" : ""}`} /> Refresh
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
           </Section>
 
           <div className="relative max-w-md">
@@ -747,21 +974,25 @@ export default function AdminDashboard({ mode = "dashboard" }) {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[720px] text-sm">
+                      <table className="w-full min-w-[720px] table-fixed text-sm">
                         <thead>
                           <tr className="border-b border-border bg-white text-left">
-                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">#</th>
-                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opponents</th>
-                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Topic</th>
-                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Match Status</th>
+                            <th className="w-[8%] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">#</th>
+                            <th className="w-[32%] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opponents</th>
+                            <th className="w-[42%] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Topic</th>
+                            <th className="w-[18%] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Match Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {group.matches.map((match, index) => (
                             <tr key={match._id} className="border-b border-border last:border-0 hover:bg-slate-50/70 transition-colors align-top">
                               <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
-                              <td className="px-4 py-3 font-bold uppercase tracking-wide text-slate-900">{match.opponents}</td>
-                              <td className="px-4 py-3 text-slate-700 whitespace-pre-wrap break-words max-w-xl">{match.topic}</td>
+                              <td className="px-4 py-3 font-bold uppercase tracking-wide text-slate-900" title={match.opponents}>
+                                <span className="block truncate">{match.opponents}</span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-700" title={match.topic}>
+                                <span className="block truncate">{match.topic}</span>
+                              </td>
                               <td className="px-4 py-3"><MatchStatusBadge status={match.matchStatus} /></td>
                             </tr>
                           ))}

@@ -13,7 +13,7 @@ import { sendEmail } from "../services/email.service.js";
 import { matchResultEmailTemplate } from "../templates/matchResultEmail.js";
 import { matchUpdateEmailTemplate } from "../templates/matchUpdateEmail.js";
 import { signPasskeyToken } from "../utils/authtoken.js";
-import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS, USER_STATUS } from "../utils/enum.js";
+import { MATCH_STATUS, TOPIC_TYPE, ROUND_STATUS, USER_STATUS, USER_ROLE } from "../utils/enum.js";
 import { logInfo } from "../utils/logger.js";
 
 export const MATCH_DURATION = Number(process.env.MATCH_DURATION_MS || 5 * 60 * 1000); // 5 minutes in milliseconds
@@ -22,7 +22,7 @@ class MatchController{
 
     generateMatches = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -90,6 +90,8 @@ class MatchController{
                 matchesCreated++;
             }
 
+            await redisClient.zunionstore('leaderboard', 1, 'leaderboard', 'WEIGHTS', 0);
+
             currRound.roundStatus = ROUND_STATUS.READY;
             await currRound.save({ session });
 
@@ -110,8 +112,56 @@ class MatchController{
 
     })
 
+    createMatch = asyncHandler(async(req, res) => {
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
+            throw new ApiError(403, "Forbidden");
+        }
+
+        const { team1Id, team2Id, topicId, roundId } = req.body;
+
+        if(!team1Id || !team2Id || !topicId || !roundId){
+            throw new ApiError(400, "Team IDs, topic ID and round ID are required to create a match");
+        }
+
+        if(team1Id === team2Id){
+            throw new ApiError(400, "A team cannot play against itself");
+        }
+
+        const team1 = await userModel.findById(team1Id);
+        const team2 = await userModel.findById(team2Id);
+
+        if(!team1 || !team2){
+            throw new ApiError(404, "One or both teams not found");
+        }
+
+        await redisClient.zadd("leaderboard", 0, `${team1Id}:${team1.name}`);
+        await redisClient.zadd("leaderboard", 0, `${team2Id}:${team2.name}`);
+        logInfo(`Teams added to leaderboard with initial score of 0. Team1: ${team1.name || team1.email}, Team2: ${team2.name || team2.email}.`);
+
+        const proTeam = Math.random() < 0.5 ? team1Id : team2Id;
+        const match = await matchModel.create({
+            opponents: {
+                team1: {
+                    user: team1Id,
+                    topicType: proTeam === team1Id ? TOPIC_TYPE.PROS : TOPIC_TYPE.CONS,
+                },
+                team2: {
+                    user: team2Id,
+                    topicType: proTeam === team2Id ? TOPIC_TYPE.PROS : TOPIC_TYPE.CONS,
+                },
+            },
+            topic: topicId,
+            round: roundId,
+            matchStatus: MATCH_STATUS.PENDING,
+        });
+
+        const round = await roundModel.findByIdAndUpdate(roundId, { $set: { roundStatus: ROUND_STATUS.READY } }, { new: true });
+
+        return new ApiResponse(201, match, "Match created successfully")
+    })
+
     activateMatch = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -173,7 +223,9 @@ class MatchController{
         const wsUrl1 = `${WS_BASE}?matchId=${matchId}&passkey=${passkey1}`;
         const wsUrl2 = `${WS_BASE}?matchId=${matchId}&passkey=${passkey2}`;
 
+        
         logInfo(`Match activated successfully for ${team1Name} vs ${team2Name}.`);
+        logInfo(`WebSocket URLs generated. \nTeam1: ${wsUrl1} \nTeam2: ${wsUrl2}`);
         const tpl1 = matchUpdateEmailTemplate({ recipientName: team1Name, team1Name, team2Name, wsUrl: wsUrl1 });
         const tpl2 = matchUpdateEmailTemplate({ recipientName: team2Name, team1Name, team2Name, wsUrl: wsUrl2 });
 
@@ -185,7 +237,7 @@ class MatchController{
     })
 
     startMatch = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -224,7 +276,7 @@ class MatchController{
 
     pauseMatch = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -269,7 +321,7 @@ class MatchController{
 
     resumeMatch = asyncHandler(async(req, res) => {
 
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 
@@ -344,7 +396,7 @@ class MatchController{
 
     getAllMatchesAdmin = asyncHandler(async(req, res) => {
         
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
         const matches = await matchModel.find({})
@@ -368,7 +420,7 @@ class MatchController{
             throw new ApiError(400, "Round ID is required to get matches");
         }
 
-        if(req.user.role !== "admin"){
+        if(req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
         const matches = await matchModel.find({round: roundId}).populate("opponents.team1.user", "_id name email")
@@ -403,6 +455,10 @@ class MatchController{
             throw new ApiError(400, "Match ID, scores and winner are required to update match result");
         }
 
+        if(result.scores.team1 <0 || result.scores.team2 < 0 || result.scores.team1 === result.scores.team2 || result.scores.team1>100 || result.scores.team2>100){
+            throw new ApiError(400, "Invalid scores. Scores must be non-negative, not equal and less than or equal to 100");
+        } 
+
         const match = await matchModel.findById(matchId);
 
         if(!match){
@@ -426,6 +482,7 @@ class MatchController{
 
         // Clear Redis match state
         await redisClient.del(`match:${matchId}`);
+        socketService.unregisterMatch(matchId); 
         logInfo(`Match state removed from Redis successfully. Match ID: ${matchId}.`);
 
         // Derive winner / loser from populated data
@@ -450,8 +507,8 @@ class MatchController{
 
         // Disable loser + invalidate session + remove from leaderboard
         try {
-            await userModel.updateOne({ _id: loserData.id }, { $set: { status: USER_STATUS.DISABLED }, $inc:{tournamentPoints: loserData.score} });
-            await userModel.updateOne({_id: winnerData.id},{$inc:{tournamentPoints: winnerData.score}}); 
+            await userModel.updateOne({ _id: loserData.id }, { $set: { status: USER_STATUS.DISABLED, tournamentPoints: loserData.score } });
+            await userModel.updateOne({_id: winnerData.id},{$set:{tournamentPoints: winnerData.score}}); 
             await redisClient.del(userSessionKey(loserData.id));
             await redisClient.zrem('leaderboard', `${loserData.id}:${loserData.name}`);
             logInfo(`Leaderboard updated successfully. Removed user: ${loserData.name}.`);
@@ -460,8 +517,8 @@ class MatchController{
         }
 
         // Update winner's leaderboard score
-        await redisClient.zincrby('leaderboard', winnerData.score, `${winnerData.id}:${winnerData.name}`);
-        logInfo(`Leaderboard updated successfully. Winner: ${winnerData.name}, Score: ${winnerData.score}.`);
+        await redisClient.zadd('leaderboard', winnerData.score, `${winnerData.id}:${winnerData.name}`);
+        logInfo(`Leaderboard updated successfully. Winner: ${winnerData.name}, Score: ${winnerData.score}, Loser: ${loserData.name}, Score: ${loserData.score}.`);
 
         // Send result emails to both participants
         const buildTpl = (recipientName) => matchResultEmailTemplate({
@@ -487,7 +544,7 @@ class MatchController{
     }
 
     updateManualMatchResult = asyncHandler(async(req, res) => {
-        if(!req.user.role || req.user.role !== "admin"){
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
             throw new ApiError(403, "Forbidden");
         }
 

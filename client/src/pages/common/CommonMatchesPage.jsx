@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Swords, Target, CircleCheckBig, Play, Sparkles, X, ChevronDown, Search } from "lucide-react";
+import { Swords, Target, CircleCheckBig, Play, Sparkles, X, ChevronDown, Search, RotateCcw } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ export default function CommonMatchesPage() {
   const [resultModalMatch, setResultModalMatch] = useState(null);
   const [resultBusy, setResultBusy] = useState(false);
   const [resultForm, setResultForm] = useState({ team1: "", team2: "", winner: "" });
+  const [restartingMatchId, setRestartingMatchId] = useState(null);
   const [expandedRoundIds, setExpandedRoundIds] = useState(new Set());
   const [globalSearch, setGlobalSearch] = useState("");
 
@@ -86,6 +87,11 @@ export default function CommonMatchesPage() {
 
   const openResultModal = useCallback((match) => {
     if (!match) return;
+    if (match?.displayStatus === "completed") {
+      toast.info("Completed matches cannot be updated.");
+      return;
+    }
+
     setResultModalMatch(match);
     setResultForm({
       team1: Number.isFinite(match?.scores?.team1) ? String(match.scores.team1) : "",
@@ -141,6 +147,24 @@ export default function CommonMatchesPage() {
     }
   }, [closeResultModal, loadMatches, resultForm.team1, resultForm.team2, resultForm.winner, resultModalMatch]);
 
+  const handleRestartMatch = useCallback(async (matchId) => {
+    if (!matchId) return;
+
+    const confirmed = window.confirm("Restart this completed match? This will set it back to activated state.");
+    if (!confirmed) return;
+
+    setRestartingMatchId(matchId);
+    try {
+      const res = await activateMatch(matchId);
+      toast.success(res?.message || "Match restarted successfully.");
+      await loadMatches();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to restart match.");
+    } finally {
+      setRestartingMatchId(null);
+    }
+  }, [loadMatches]);
+
   const roundWiseMatches = useMemo(() => {
     const statusToDisplay = {
       [MATCH_STATUS.PENDING]: "created",
@@ -168,6 +192,8 @@ export default function CommonMatchesPage() {
         _id: m?._id,
         team1: m?.opponents?.team1?.user?.name || "Team 1",
         team2: m?.opponents?.team2?.user?.name || "Team 2",
+        team1Id: m?.opponents?.team1?.user?._id ? String(m.opponents.team1.user._id) : "",
+        team2Id: m?.opponents?.team2?.user?._id ? String(m.opponents.team2.user._id) : "",
         displayStatus: statusToDisplay[m?.matchStatus] || "created",
         winner: m?.winner?.name ? String(m.winner.name).toUpperCase() : null,
         scores: m?.scores || null,
@@ -352,6 +378,9 @@ export default function CommonMatchesPage() {
                   const displayStatus = m.displayStatus || "created";
                   const bg = bgByStatus[displayStatus] || bgByStatus.created;
                   const statusBadge = badgeByStatus[displayStatus] || badgeByStatus.created;
+                  const currentUserId = String(user?._id || user?.id || "");
+                  const isParticipant = !!currentUserId && [m.team1Id, m.team2Id].includes(currentUserId);
+                  const canViewMatch = isAdmin || isParticipant;
 
                   return (
                     <motion.div
@@ -405,6 +434,11 @@ export default function CommonMatchesPage() {
                               >
                                 {activatingMatchId === m._id ? "Activating..." : "Activate"}
                               </Button>
+                            </>
+                          )}
+
+                          {isAdmin && displayStatus !== "completed" && (
+                            <>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -415,7 +449,21 @@ export default function CommonMatchesPage() {
                               </Button>
                             </>
                           )}
-                          {canEnterStatuses.has(displayStatus) ? (
+
+                          {isAdmin && displayStatus === "completed" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-2 mr-2"
+                              onClick={() => handleRestartMatch(m._id)}
+                              disabled={restartingMatchId === m._id}
+                            >
+                              <RotateCcw className={`h-4 w-4 ${restartingMatchId === m._id ? "animate-spin" : ""}`} />
+                              {restartingMatchId === m._id ? "Restarting..." : "Restart Match"}
+                            </Button>
+                          )}
+
+                          {canViewMatch && canEnterStatuses.has(displayStatus) ? (
                             <Button
                               size="sm"
                               className="gap-2 bg-slate-900 hover:bg-black text-white"
@@ -423,11 +471,11 @@ export default function CommonMatchesPage() {
                             >
                               <Play className="h-4 w-4" /> Enter
                             </Button>
-                          ) : (
+                          ) : canViewMatch ? (
                             <Button size="sm" variant="outline" disabled>
                               Enter
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </motion.div>
