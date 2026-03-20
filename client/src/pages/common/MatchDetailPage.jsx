@@ -39,7 +39,7 @@ const statusClass = {
 };
 
 const toWsUrl = (matchId) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+  const backendUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
   const wsBase = backendUrl.startsWith("https://")
     ? backendUrl.replace("https://", "wss://")
     : backendUrl.replace("http://", "ws://");
