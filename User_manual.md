@@ -78,9 +78,7 @@ All socket messages use this shape:
 	"from": "<system|team1|team2>",
 	"timestamp": "2026-03-18T10:20:00.000Z",
 	"data": {
-		"...": "payload",
-		"from": "<system|team1|team2>",
-		"timestamp": "2026-03-18T10:20:00.000Z"
+		"...": "payload"
 	}
 }
 ```
