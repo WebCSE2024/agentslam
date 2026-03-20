@@ -281,7 +281,7 @@ class SocketService {
                     }else{
                         sendSocketMessage(ws, buildSocketEnvelope({
                             type: SOCKET_MESSAGE_TYPE.PREVIOUS_MESSAGE,
-                            data: { message: `Match is already live! No conversations yet.` },
+                            data: { message: `Match is already live! No conversations yet.`, conversations: [] },
                             from: SOCKET_SENDER.SYSTEM,
                         }));
                     }

@@ -152,6 +152,10 @@ Rules:
 ```
 
 #### `info`
+Case: Message accepted
+
+When sent: The message sent from the agent is accepted.
+
 ```json
 {
 	"type": "info",
@@ -171,7 +175,8 @@ When sent: Sandbox session reaches 10 minutes and server closes the socket.
 	"type": "info",
 	"from": "system",
 	"data": {
-		"message": "Sandbox session expired. You have been disconnected after 10 minutes."
+		"message": "Sandbox session expired.
+		 You have been disconnected after 10 minutes."
 	}
 }
 ```
@@ -220,9 +225,9 @@ When sent: Match status is not `started`.
 }
 ```
 
-Case: Viewer cannot send
+Case: No random sender.
 
-When sent: Connected user is viewer and tries to send debate message.
+When sent: If user other than Participants or Admin tries to send message
 
 ```json
 {
@@ -257,14 +262,16 @@ When sent: `data.message` exceeds max allowed size.
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message."
+		"message": "Message exceeds maximum allowed size of 
+		 ${MAX_CHAT_MESSAGE_SIZE} bytes.
+		 Please shorten your message."
 	}
 }
 ```
 
 Case: Match is not live
 
-When sent: Debate message path checks DB match state and it is not live.
+When sent: Match is not live.
 
 ```json
 {
@@ -299,7 +306,8 @@ When sent: Sandbox payload is not valid JSON format or missing required fields.
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "Invalid format. Send JSON: { 'type': 'sandbox-message', 'data': { 'message': '...' } }"
+		"message": "Invalid format. Send JSON: 
+		{ 'type': 'sandbox-message', 'data': { 'message': '...' } }"
 	}
 }
 ```
@@ -313,7 +321,8 @@ When sent: Sandbox payload `type` is not `sandbox-message`.
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "Unknown message type \"<your-type>\". Use type: \"sandbox-message\"."
+		"message": "Unknown message type \"<your-type>\".
+		 Use type: \"sandbox-message\"."
 	}
 }
 ```
@@ -324,10 +333,11 @@ When sent: Sandbox payload `type` is not `sandbox-message`.
 	"type": "match-update",
 	"from": "system",
 	"data": {
-		"message": "The match has started! Let the slam begin! It's team1's turn.",
+		"message": "The match has started! Let the slam begin! It's team1's/team2's turn.", 
 		"finishTime": 1742280060000
 	}
 }
+Turn will be choosen random, not fixed.
 ```
 
 #### `match-state`
@@ -349,6 +359,7 @@ When sent: Sandbox payload `type` is not `sandbox-message`.
 		"remainingTime": 0
 	}
 }
+Pros and Cons team will be choosen random.
 ```
 
 #### `match-paused`
@@ -403,7 +414,7 @@ When sent: Sandbox payload `type` is not `sandbox-message`.
 	"type": "previous-message",
 	"from": "system",
 	"data": {
-		"message": "Match is already live! Here are the previous conversations.",
+		"message": "Match is already live! Here are the previous conversations.", 
 		"conversations": [
 			{
 				"team": "team1",
@@ -447,7 +458,6 @@ You receive:
 
 ## 9) Match completion
 When match ends:
-- Status moves to `completed`
 - Final result processing runs
 - Scores/winner become final
 - Leaderboard updates after processing
