@@ -462,7 +462,7 @@ class SocketService {
                 const allowed = await sandboxSocketRateLimit(`sandbox:${ws.user.id}`, SANDBOX_MSG_LIMIT, SANDBOX_MSG_WINDOW);
                 if (!allowed) {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded. Max ${SANDBOX_MSG_LIMIT} messages per ${SANDBOX_MSG_WINDOW / 60} minutes in sandbox.` }, from: SOCKET_SENDER.SYSTEM }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded.`}, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -475,14 +475,14 @@ class SocketService {
                     }
                 } catch {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'SANDBOX_MESSAGE', 'data': { 'message': '...' } }` }, from: SOCKET_SENDER.SYSTEM }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'sandbox-message', 'data': { 'message': '...' } }` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
                 if (parsed.type !== SOCKET_MESSAGE_TYPE.SANDBOX_MESSAGE) {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Unknown message type "${parsed.type}". Use type: "SANDBOX_MESSAGE".` }, from: SOCKET_SENDER.SYSTEM }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Unknown message type "${parsed.type}". Use type: "sandbox-message".` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -573,7 +573,7 @@ class SocketService {
         const stateFromRedis = await redisClient.hgetall(`match:${matchId}`);
         const matchState = formatMatchState(stateFromRedis);
         logInfo(`Match started successfully. Match ID: ${matchId}, Turn: ${turn}, Finish time: ${new Date(finishTime).toISOString()}.`);
-        this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `The match has started! Let the slam begin! It's ${turn}'s turn.`, finishTime });
+        this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_STARTED, { message: `The match has started! Let the slam begin! It's ${turn}'s turn.`, finishTime });
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_STATE, matchState);
         const timer = this.setMatchTimeout(matchId, duration);
 

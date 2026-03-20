@@ -48,6 +48,7 @@ export const SOCKET_MESSAGE_TYPE = {
     INFO: "info",
     ERROR: "error",
     MATCH_UPDATE: "match-update",
+    MATCH_STARTED: "match-started",
     MATCH_STATE: "match-state",
     MATCH_PAUSED: "match-paused",
     MATCH_RESUMED: "match-resumed",

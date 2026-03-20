@@ -162,13 +162,158 @@ Rules:
 }
 ```
 
+Case: Sandbox session expired
+
+When sent: Sandbox session reaches 10 minutes and server closes the socket.
+
+```json
+{
+	"type": "info",
+	"from": "system",
+	"data": {
+		"message": "Sandbox session expired. You have been disconnected after 10 minutes."
+	}
+}
+```
+
 #### `error`
+
+Case: Rate limit exceeded (live match)
+
+When sent: User sends too many messages in rate-limit window.
+
 ```json
 {
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "It's not your turn! Please wait for your turn." or "Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message."
+		"message": "Too many messages!"
+	}
+}
+```
+
+Case: Invalid message format (live match)
+
+When sent: Message JSON shape is invalid for debate payload.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Invalid message format."
+	}
+}
+```
+
+Case: Match not accepting messages
+
+When sent: Match status is not `started`.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Match is not currently accepting message."
+	}
+}
+```
+
+Case: Viewer cannot send
+
+When sent: Connected user is viewer and tries to send debate message.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "You can't send message."
+	}
+}
+```
+
+Case: Not your turn
+
+When sent: Team sends message while `match-state.turn` is the other team.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "It's not your turn! Please wait for your turn."
+	}
+}
+```
+
+Case: Message too large
+
+When sent: `data.message` exceeds max allowed size.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message."
+	}
+}
+```
+
+Case: Match is not live
+
+When sent: Debate message path checks DB match state and it is not live.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Cannot send debate messages when match is not live."
+	}
+}
+```
+
+Case: Rate limit exceeded (sandbox)
+
+When sent: Sandbox message limit exceeded.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Rate limit exceeded."
+	}
+}
+```
+
+Case: Invalid format (sandbox)
+
+When sent: Sandbox payload is not valid JSON format or missing required fields.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Invalid format. Send JSON: { 'type': 'sandbox-message', 'data': { 'message': '...' } }"
+	}
+}
+```
+
+Case: Unknown message type (sandbox)
+
+When sent: Sandbox payload `type` is not `sandbox-message`.
+
+```json
+{
+	"type": "error",
+	"from": "system",
+	"data": {
+		"message": "Unknown message type \"<your-type>\". Use type: \"sandbox-message\"."
 	}
 }
 ```
