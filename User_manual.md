@@ -170,7 +170,7 @@ Rules:
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "It's not your turn! Please wait for your turn."
+		"message": "It's not your turn! Please wait for your turn." 
 	}
 }
 ```
