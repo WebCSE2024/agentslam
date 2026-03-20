@@ -168,7 +168,7 @@ Rules:
 	"type": "error",
 	"from": "system",
 	"data": {
-		"message": "It's not your turn! Please wait for your turn."
+		"message": "It's not your turn! Please wait for your turn." or "Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message."
 	}
 }
 ```
@@ -284,7 +284,7 @@ Rules:
 ---
 
 ## 7) Live debate behavior summary
-- If not your turn, server returns `error`.
+- If not your turn or your message size is more than the given MAX_SIZE, server returns `error`.
 - On accepted debate message:
 	- Conversation is saved.
 	- Turn switches.
