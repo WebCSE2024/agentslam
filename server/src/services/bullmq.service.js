@@ -2,6 +2,7 @@ import bullmq from 'bullmq';
 import matchController from '../controllers/match.controller.js';
 import matchModel from '../models/match.model.js';
 import { logInfo } from '../utils/logger.js';
+import { TOPIC_TYPE } from '../utils/enum.js';
 const { Queue, Worker } = bullmq;
 
 class BullMQService {
@@ -89,7 +90,7 @@ class BullMQService {
     }
 
     async addResultJob(matchId) {
-        const match = await matchModel.findById(matchId).lean();
+        const match = await matchModel.findById(matchId).populate('topic').lean();
         
         if(!match){
             console.error(`Match with ID ${matchId} not found. Cannot add result job.`);
@@ -98,7 +99,15 @@ class BullMQService {
 
         const data = {
             matchId,
-            conversations: match.conversations
+            for_the_motion: opponents.team1.topicType === TOPIC_TYPE.PROS ? 'team1' : 'team2',
+            against_the_motion: opponents.team1.topicType === TOPIC_TYPE.CONS ? 'team1' : 'team2',
+            topic: match.topic.title,
+            description: match.topic.description,
+            conversations: match.conversations.map((conv) => ({
+                teamId: conv.team,
+                message: conv.message,
+                timestamp: conv.timestamp,
+            }))
         };
         await this.resultqueue.add("match-result-request", data);
     }
