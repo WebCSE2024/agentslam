@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { activateMatch, getAllMatches, updateMatchResult } from "@/api/matchApi";
+import { activateMatch, cancelMatch, getAllMatches } from "@/api/matchApi";
 import { UserContext } from "@/contexts/UserContext";
 
 const ROUND_STATUS = {
@@ -21,6 +21,7 @@ const MATCH_STATUS = {
   STARTED: "started",
   PAUSED: "paused",
   COMPLETED: "completed",
+  CANCELLED: "cancelled",
 };
 
 const bgByStatus = {
@@ -28,6 +29,7 @@ const bgByStatus = {
   activated: "from-amber-500 to-orange-500",
   started: "from-violet-500 to-fuchsia-500",
   completed: "from-emerald-500 to-teal-500",
+  cancelled: "from-rose-500 to-red-500",
 };
 
 const badgeByStatus = {
@@ -35,6 +37,7 @@ const badgeByStatus = {
   activated: "bg-amber-100 text-amber-700 border-amber-200",
   started: "bg-violet-100 text-violet-700 border-violet-200",
   completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  cancelled: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
 const canEnterStatuses = new Set(["activated", "started"]);
@@ -50,7 +53,7 @@ export default function CommonMatchesPage() {
   const [activatingMatchId, setActivatingMatchId] = useState(null);
   const [resultModalMatch, setResultModalMatch] = useState(null);
   const [resultBusy, setResultBusy] = useState(false);
-  const [resultForm, setResultForm] = useState({ team1: "", team2: "", winner: "" });
+  const [resultForm, setResultForm] = useState({ winner: "" });
   const [restartingMatchId, setRestartingMatchId] = useState(null);
   const [expandedRoundIds, setExpandedRoundIds] = useState(new Set());
   const [globalSearch, setGlobalSearch] = useState("");
@@ -87,22 +90,18 @@ export default function CommonMatchesPage() {
 
   const openResultModal = useCallback((match) => {
     if (!match) return;
-    if (match?.displayStatus === "completed") {
-      toast.info("Completed matches cannot be updated.");
+    if (match?.displayStatus === "completed" || match?.displayStatus === "cancelled") {
+      toast.info("Completed or cancelled matches cannot be cancelled again.");
       return;
     }
 
     setResultModalMatch(match);
-    setResultForm({
-      team1: Number.isFinite(match?.scores?.team1) ? String(match.scores.team1) : "",
-      team2: Number.isFinite(match?.scores?.team2) ? String(match.scores.team2) : "",
-      winner: "",
-    });
+    setResultForm({ winner: "" });
   }, []);
 
   const closeResultModal = useCallback(() => {
     setResultModalMatch(null);
-    setResultForm({ team1: "", team2: "", winner: "" });
+    setResultForm({ winner: "" });
   }, []);
 
   const onResultFieldChange = useCallback((field, value) => {
@@ -112,40 +111,25 @@ export default function CommonMatchesPage() {
   const submitResult = useCallback(async () => {
     if (!resultModalMatch?._id) return;
 
-    const team1 = Number(resultForm.team1);
-    const team2 = Number(resultForm.team2);
     const winner = resultForm.winner;
 
-    if (!Number.isFinite(team1) || !Number.isFinite(team2)) {
-      toast.error("Please enter valid numeric scores for both teams.");
-      return;
-    }
-
-    if (team1 < 0 || team2 < 0) {
-      toast.error("Scores cannot be negative.");
-      return;
-    }
-
-    if (winner !== "team1" && winner !== "team2") {
-      toast.error("Please select a winner.");
+    if (winner !== "team1" && winner !== "team2" && winner !== "none") {
+      toast.error("Please select team1, team2, or none.");
       return;
     }
 
     setResultBusy(true);
     try {
-      const res = await updateMatchResult(resultModalMatch._id, {
-        scores: { team1, team2 },
-        winner,
-      });
-      toast.success(res?.message || "Match result updated successfully.");
+      const res = await cancelMatch(resultModalMatch._id, { winner });
+      toast.success(res?.message || "Match cancelled successfully.");
       closeResultModal();
       await loadMatches();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to update match result.");
+      toast.error(err?.response?.data?.message || "Failed to cancel match.");
     } finally {
       setResultBusy(false);
     }
-  }, [closeResultModal, loadMatches, resultForm.team1, resultForm.team2, resultForm.winner, resultModalMatch]);
+  }, [closeResultModal, loadMatches, resultForm.winner, resultModalMatch]);
 
   const handleRestartMatch = useCallback(async (matchId) => {
     if (!matchId) return;
@@ -172,6 +156,7 @@ export default function CommonMatchesPage() {
       [MATCH_STATUS.STARTED]: "started",
       [MATCH_STATUS.PAUSED]: "started",
       [MATCH_STATUS.COMPLETED]: "completed",
+      [MATCH_STATUS.CANCELLED]: "cancelled",
     };
 
     const grouped = new Map();
@@ -406,7 +391,9 @@ export default function CommonMatchesPage() {
                         <div className="grid grid-cols-1 gap-2.5">
                           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                             <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Winner</p>
-                            <p className="text-sm font-bold text-slate-900 mt-0.5">{m.winner || "Not yet completed"}</p>
+                            <p className="text-sm font-bold text-slate-900 mt-0.5">
+                              {displayStatus === "cancelled" ? (m.winner || "NONE") : (m.winner || "Not yet completed")}
+                            </p>
                           </div>
 
                           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
@@ -415,7 +402,7 @@ export default function CommonMatchesPage() {
                               <p className="text-[11px] uppercase tracking-wider font-semibold">Scores</p>
                             </div>
                             <p className="text-sm font-bold text-slate-900 mt-0.5">
-                              {displayStatus === "completed" && m.scores
+                              {(displayStatus === "completed" || displayStatus === "cancelled") && m.scores
                                 ? `${m.scores.team1 ?? 0} - ${m.scores.team2 ?? 0}`
                                 : "Not yet completed"}
                             </p>
@@ -437,7 +424,7 @@ export default function CommonMatchesPage() {
                             </>
                           )}
 
-                          {isAdmin && displayStatus !== "completed" && (
+                          {isAdmin && displayStatus !== "completed" && displayStatus !== "cancelled" && (
                             <>
                               <Button
                                 size="sm"
@@ -445,7 +432,7 @@ export default function CommonMatchesPage() {
                                 className="gap-2 mr-2"
                                 onClick={() => openResultModal(m)}
                               >
-                                Update Result
+                                Cancel Match
                               </Button>
                             </>
                           )}
@@ -493,7 +480,7 @@ export default function CommonMatchesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <h3 className="text-base font-black uppercase tracking-wide text-slate-900">Update Pending Match Result</h3>
+              <h3 className="text-base font-black uppercase tracking-wide text-slate-900">Cancel Match</h3>
               <button
                 type="button"
                 onClick={closeResultModal}
@@ -509,31 +496,6 @@ export default function CommonMatchesPage() {
                 {resultModalMatch.team1} vs {resultModalMatch.team2}
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="pending-score-team1">Score: {resultModalMatch.team1} (team1)</Label>
-                  <Input
-                    id="pending-score-team1"
-                    type="number"
-                    min="0"
-                    value={resultForm.team1}
-                    onChange={(e) => onResultFieldChange("team1", e.target.value)}
-                    placeholder="Enter score"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="pending-score-team2">Score: {resultModalMatch.team2} (team2)</Label>
-                  <Input
-                    id="pending-score-team2"
-                    type="number"
-                    min="0"
-                    value={resultForm.team2}
-                    onChange={(e) => onResultFieldChange("team2", e.target.value)}
-                    placeholder="Enter score"
-                  />
-                </div>
-              </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="pending-winner-select">Winner</Label>
                 <select
@@ -545,16 +507,17 @@ export default function CommonMatchesPage() {
                   <option value="">Select winner</option>
                   <option value="team1">{resultModalMatch.team1} (team1)</option>
                   <option value="team2">{resultModalMatch.team2} (team2)</option>
+                  <option value="none">None (both absent)</option>
                 </select>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
               <Button type="button" variant="outline" onClick={closeResultModal} disabled={resultBusy}>
-                Cancel
+                Close
               </Button>
               <Button type="button" onClick={submitResult} disabled={resultBusy}>
-                {resultBusy ? "Saving..." : "Save Result"}
+                {resultBusy ? "Cancelling..." : "Confirm Cancel"}
               </Button>
             </div>
           </div>

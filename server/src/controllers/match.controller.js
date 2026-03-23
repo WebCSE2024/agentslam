@@ -560,6 +560,108 @@ class MatchController{
         return new ApiResponse(200, match, "Match result updated successfully")
     })
 
+    cancelMatch = asyncHandler(async(req, res) => {
+
+        if(!req.user.role || req.user.role !== USER_ROLE.ADMIN){
+            throw new ApiError(403, "Forbidden");
+        }
+
+        const {matchId} = req.params;
+        const winner = req.body.winner;
+
+        
+        if(!matchId){
+            throw new ApiError(400, "Match ID is required to cancel the match");
+        }
+
+        if(!winner || (winner !== 'team1' && winner !== 'team2' && winner !== 'none')){
+            throw new ApiError(400, "Invalid winner specified");
+        }
+
+        const match = await matchModel.findById(matchId).populate("opponents.team1.user", "_id name email")
+        .populate("opponents.team2.user", "_id name email");
+
+        if(!match){
+            throw new ApiError(404, "Match not found");
+        }
+
+        match.matchStatus = MATCH_STATUS.CANCELLED;
+       
+        if(winner === 'team1'){
+            match.scores = { team1: Number(process.env.DEFAULT_MATCH_SCORE) || 70, team2: 0 };
+        }else if(winner === 'team2'){
+            match.scores =  { team1: 0, team2: Number(process.env.DEFAULT_MATCH_SCORE) || 70 };
+        }
+        
+        match.winner = winner === 'team1' ? match.opponents.team1.user : winner === 'team2' ? match.opponents.team2.user : null;
+        await match.save();
+        
+        await redisClient.del(`match:${matchId}`);
+        socketService.unregisterMatch(matchId); 
+        if(winner === 'none'){
+            // If both teams are absent, disable both and remove from leaderboard
+            const team1UserId = match.opponents.team1.user._id.toString();
+            const team2UserId = match.opponents.team2.user._id.toString();
+            await userModel.updateMany({ _id: { $in: [team1UserId, team2UserId] } }, { $set: { status: USER_STATUS.DISABLED } });
+            await redisClient.del(userSessionKey(team1UserId));
+            await redisClient.del(userSessionKey(team2UserId));
+            await redisClient.zrem('leaderboard', `${team1UserId}:${match.opponents.team1.user.name}`);
+            await redisClient.zrem('leaderboard', `${team2UserId}:${match.opponents.team2.user.name}`);
+        } else {
+            // If one team is present, add points to it
+            const winnerUserId = match.opponents[winner].user._id.toString();
+            const loserUserId = winner === 'team1' ? match.opponents.team2.user._id.toString() : match.opponents.team1.user._id.toString();
+            const winnerData = await userModel.findByIdAndUpdate(
+                winnerUserId,
+                { $set: { tournamentPoints: Number(process.env.DEFAULT_MATCH_SCORE) || 70 } },
+                { new: true }
+            );
+            if(!winnerData){
+                throw new ApiError(404, "Winner user not found");
+            }
+            await redisClient.zadd('leaderboard', winnerData.tournamentPoints, `${winnerUserId}:${winnerData.name}`);
+            await userModel.updateOne({_id: loserUserId},{$set:{status: USER_STATUS.DISABLED}});
+            await redisClient.del(userSessionKey(loserUserId));
+            await redisClient.zrem('leaderboard', `${loserUserId}:${winner === 'team1' ? match.opponents.team2.user.name : match.opponents.team1.user.name}`);
+
+        }
+
+        // Send cancellation result emails to both participants
+        const team1User = match.opponents.team1.user;
+        const team2User = match.opponents.team2.user;
+        const team1Name = team1User?.name || team1User?.email || "Team 1";
+        const team2Name = team2User?.name || team2User?.email || "Team 2";
+        const scoreTeam1 = Number(match?.scores?.team1 ?? 0);
+        const scoreTeam2 = Number(match?.scores?.team2 ?? 0);
+        const winnerName = winner === 'team1'
+            ? team1Name
+            : winner === 'team2'
+                ? team2Name
+                : 'NONE';
+
+        const buildTpl = (recipientName) => matchResultEmailTemplate({
+            recipientName,
+            team1Name,
+            team2Name,
+            scoreTeam1,
+            scoreTeam2,
+            winnerName,
+        });
+
+        const team1Tpl = buildTpl(team1Name);
+        const team2Tpl = buildTpl(team2Name);
+
+        await sendEmail({ to: team1User.email, subject: team1Tpl.subject, html: team1Tpl.html, text: team1Tpl.text })
+            .catch(err => console.error(`Failed to send cancellation result email to team1 (${team1User.email}):`, err));
+        await sendEmail({ to: team2User.email, subject: team2Tpl.subject, html: team2Tpl.html, text: team2Tpl.text })
+            .catch(err => console.error(`Failed to send cancellation result email to team2 (${team2User.email}):`, err));
+
+        logInfo(`Match cancelled successfully. Match ID: ${matchId}, Winner: ${winner}.`);
+
+        return new ApiResponse(200, match, "Match cancelled successfully")
+
+    })
+
     resetMatchDB = async() => {
         try {
             await matchModel.deleteMany({});
@@ -574,3 +676,15 @@ class MatchController{
 }
 
 export default new MatchController();
+
+
+
+
+
+
+/**
+ * 
+ * if match gets cancelled - both team absent or a team is absent
+ * if one team present then you need to add points to it.
+ * if both absent disable both teams and remove from leaderboard.
+ */
