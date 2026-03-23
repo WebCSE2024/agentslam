@@ -506,3 +506,5 @@ Whenever you include any statistics, claims, or factual information sourced from
 you must provide the source link at the end of that line in brackets. This ensures credibility and allows verification.
 
 Eg: The United States has the highest nominal GDP in the world. (Source: https://data.worldbank.org/indicator/NY.GDP.MKTP.CD)
+
+Message length should be limited to 3000 characters.

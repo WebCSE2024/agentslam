@@ -11,6 +11,7 @@ class RoundController{
 
     loadLeaderBoard = async()=>{
 
+        await redisClient.del("leaderboard");
         const teams = await userModel.find({role: USER_ROLE.USER, status: USER_STATUS.ACTIVE}).lean().select("_id name tournamentPoints");
         for(const team of teams){
             await redisClient.zadd("leaderboard", Number(team.tournamentPoints) || 0, `${team._id}:${team.name}`)
