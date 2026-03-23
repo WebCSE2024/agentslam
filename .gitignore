@@ -1,0 +1,146 @@
+# ============================================================
+#  AgentSlam — Root .gitignore
+#  Covers all services: client, server, server-dashboard, oracle
+# ============================================================
+
+# ----------------------------
+# Dependencies
+# ----------------------------
+node_modules/
+.pnp
+.pnp.js
+jspm_packages/
+
+# ----------------------------
+# Build & Output
+# ----------------------------
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+*.tsbuildinfo
+
+# ----------------------------
+# Environment Variables
+# ----------------------------
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+secrets.env
+*.env.secret
+
+# Keep example env files tracked
+!.env.example
+!*.env.example
+
+# ----------------------------
+# Fly.io Configuration
+# ----------------------------
+*.toml
+
+# ----------------------------
+# Deployment Docs (internal)
+# ----------------------------
+DEPLOYMENT.md
+
+# ----------------------------
+# Logs
+# ----------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ----------------------------
+# OS Generated
+# ----------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+
+# ----------------------------
+# Editors & IDEs
+# ----------------------------
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Cursor
+.cursor/
+.cursorignore
+.cursorrules
+
+# JetBrains (IntelliJ, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+tags
+
+# Emacs
+*~
+\#*\#
+.emacs.desktop
+.emacs.desktop.lock
+
+# ----------------------------
+# AI / Agent Tooling
+# ----------------------------
+.gemini/
+.agents/
+.agent/
+_agents/
+_agent/
+
+# ----------------------------
+# Testing & Coverage
+# ----------------------------
+coverage/
+*.lcov
+.nyc_output/
+
+# ----------------------------
+# Package Manager
+# ----------------------------
+# Uncomment if using yarn
+# yarn.lock
+
+# ----------------------------
+# Vite
+# ----------------------------
+*.local
+
+# ----------------------------
+# Misc
+# ----------------------------
+*.pid
+*.seed
+*.pid.lock
+.eslintcache
