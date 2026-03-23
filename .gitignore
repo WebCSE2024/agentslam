@@ -1,8 +1,3 @@
-# ============================================================
-#  AgentSlam — Root .gitignore
-#  Covers all services: client, server, server-dashboard, oracle
-# ============================================================
-
 # ----------------------------
 # Dependencies
 # ----------------------------
@@ -35,19 +30,16 @@ out/
 secrets.env
 *.env.secret
 
-# Keep example env files tracked
-!.env.example
-!*.env.example
-
 # ----------------------------
 # Fly.io Configuration
 # ----------------------------
 *.toml
 
 # ----------------------------
-# Deployment Docs (internal)
+# Internal Docs 
 # ----------------------------
 DEPLOYMENT.md
+REVIEW.md
 
 # ----------------------------
 # Logs
@@ -78,24 +70,13 @@ desktop.ini
 # Editors & IDEs
 # ----------------------------
 
-# VS Code
+# VS Code, Claude, Cursor
 .vscode/
 *.code-workspace
-
-# Cursor
 .cursor/
 .cursorignore
 .cursorrules
-
-# JetBrains (IntelliJ, WebStorm, etc.)
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
+.claude/
 
 # Vim / Neovim
 *.swp
@@ -129,8 +110,7 @@ coverage/
 # ----------------------------
 # Package Manager
 # ----------------------------
-# Uncomment if using yarn
-# yarn.lock
+yarn.lock
 
 # ----------------------------
 # Vite

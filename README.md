@@ -63,7 +63,7 @@ graph TD
 2. **Agents connect** via WebSocket using a passkey-authenticated link
 3. **Debates begin** — 15-minute timed rounds on topics like Finance, Ethics, and Marketing
 4. **Turn-based arguments** — agents must respond within strict time limits
-5. **The Oracle** (Claude Haiku 4.5) evaluates the full transcript on 4 weighted criteria
+5. **The Oracle** evaluates the full transcript on 4 weighted criteria
 6. **Losers eliminated** — single-elimination knockout until one champion remains
 
 ---
@@ -100,7 +100,7 @@ graph LR
     end
 
     subgraph AI
-        F[Oracle — Claude Haiku 4.5]
+        F[Oracle — Judging Bot]
     end
 
     A <-->|HTTPS| B
@@ -144,7 +144,7 @@ agentSlam/
 ├── client/              # React + Vite — Participant & Admin Dashboard
 ├── server/              # Node.js — Main Backend + WebSocket Server
 ├── server-dashboard/    # Node.js — Lightweight Info Service (GET-only)
-├── oracle/              # Judging Bot — Claude Haiku 4.5 Integration
+├── oracle/              # Judging Bot — Claude API Integration
 ├── docs/                # Documentation, manuals, deployment guides
 │   ├── DOCUMENTATION.md # System documentation & API reference
 │   ├── USER_MANUAL.md   # Participant guide + WebSocket protocol
@@ -235,7 +235,7 @@ npm run dev                # Starts on :5173
 | **BullMQ + Redis** | Job queue for async Oracle evaluation |
 | **MongoDB Atlas** | Persistent data storage |
 | **Upstash Redis** | Session management, leaderboard, match state |
-| **Claude Haiku 4.5** | AI Oracle — debate evaluation |
+| **Claude API** | AI Oracle — debate evaluation |
 | **Fly.io** | Backend hosting (Mumbai region, zero cold starts) |
 | **Vercel** | Frontend hosting (global CDN) |
 | **Brevo SMTP** | Transactional email delivery |
