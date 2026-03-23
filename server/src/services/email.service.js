@@ -6,6 +6,7 @@ const SMTP_HOST = process.env.SMTP_HOST || "sandbox.smtp.mailtrap.io";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 2525);
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
+const EMAIL=process.env.EMAIL || "webcseiitism@gmail.com"
 
 var transporter = createTransport({
   host: SMTP_HOST,
@@ -42,7 +43,7 @@ transporter.verify((error) => {
 export async function sendEmail({ to, subject, html, text }) {
   try {
     await transporter.sendMail({
-      // from: EMAIL || SMTP_EMAIL,
+      from: EMAIL,
       to,
       subject,
       text,

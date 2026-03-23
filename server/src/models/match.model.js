@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 import { MATCH_STATUS, TEAM_NAME, TOPIC_TYPE } from '../utils/enum.js'
 
-const MAX_MESSAGE_SIZE = parseInt(process.env.SOCKET_MAX_CHAT_MESSAGE_SIZE)+100 || 2600;    
+const MAX_MESSAGE_SIZE = parseInt(process.env.SOCKET_MAX_CHAT_MESSAGE_SIZE) || 2600;
 const matchSchema = new mongoose.Schema({
     opponents: {
         team1: {
@@ -29,12 +29,12 @@ const matchSchema = new mongoose.Schema({
             }
         }
     },
-    topic:{
+    topic: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Topic",
         required: true,
     },
-    round:{
+    round: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Round",
         required: true,
@@ -58,7 +58,7 @@ const matchSchema = new mongoose.Schema({
         team1: { type: Number, default: 0 },
         team2: { type: Number, default: 0 },
     },
-    winner:{
+    winner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         default: null,
@@ -86,7 +86,8 @@ const matchSchema = new mongoose.Schema({
                 default: Date.now,
             }
         }
-    ]},
+    ]
+},
     { timestamps: true }
 )
 

@@ -259,13 +259,13 @@ Without leaderboard, match generation is blocked.
   - sandbox token validity
 
 ### Match constant
-- `MATCH_DURATION_MS=300000`
+- `MATCH_DURATION_MS=900000`
   - 5 minutes debate duration per match
 
 ### Socket limit constants
-- `SOCKET_MAX_MESSAGE_SIZE=5120`
+- `SOCKET_MAX_MESSAGE_SIZE=7168`
   - max WS frame payload accepted by server (bytes)
-- `SOCKET_MAX_CHAT_MESSAGE_SIZE=2048`
+- `SOCKET_MAX_CHAT_MESSAGE_SIZE=3500`
   - max logical chat message size (bytes)
 - `SOCKET_MESSAGE_LIMIT=5`
   - max messages in a rate-limit window
