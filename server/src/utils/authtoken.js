@@ -60,7 +60,7 @@ export function getCookieOptions({ httpOnly }) {
   return {
     httpOnly,
     secure: isProd,
-    sameSite: "lax",
+    sameSite: isProd ? "none" : "lax",
     path: "/",
   };
 }
