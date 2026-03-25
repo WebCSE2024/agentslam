@@ -96,7 +96,7 @@ process.on("unhandledRejection", (reason) => {
 //  Boot 
 const start = async () => {
     await connectDB();
-    server.listen(PORT, () => {
+    server.listen(PORT, "0.0.0.0", () => {
         console.log(`Server running on port ${PORT} [${process.env.NODE_ENV ?? "development"}]`);
     });
 };

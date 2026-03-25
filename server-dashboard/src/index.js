@@ -35,7 +35,7 @@ app.use(errorMiddleware);
 
 (async () => {
   await connectDB();
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`server-2 listening on ${PORT}`);
   });
 })();
