@@ -99,8 +99,8 @@ class BullMQService {
 
         const data = {
             matchId,
-            for_the_motion: opponents.team1.topicType === TOPIC_TYPE.PROS ? 'team1' : 'team2',
-            against_the_motion: opponents.team1.topicType === TOPIC_TYPE.CONS ? 'team1' : 'team2',
+            for_the_motion: match.opponents.team1.topicType === TOPIC_TYPE.PROS ? 'team1' : 'team2',
+            against_the_motion: match.opponents.team1.topicType === TOPIC_TYPE.CONS ? 'team1' : 'team2',
             topic: match.topic.title,
             description: match.topic.description,
             conversations: match.conversations.map((conv) => ({
