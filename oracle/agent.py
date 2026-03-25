@@ -11,7 +11,7 @@ Central LLM interface. Import `llm` from here to invoke Claude.
 # load_dotenv()
 
 # _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-# MODEL = "claude-sonnet-4-6"
+# MODEL = "claude-haiku-4-5"
 
 
 # def llm(
@@ -36,6 +36,13 @@ Central LLM interface. Import `llm` from here to invoke Claude.
 #     response = _client.messages.create(**kwargs)
 #     return response.content[0].text.strip()
 
+
+
+
+# ==========================================
+# GROQ IMPLEMENTATION
+# ==========================================
+
 import os
 from groq import Groq
 from dotenv import load_dotenv
@@ -54,6 +61,7 @@ def llm(
     """
     Invoke the LLM with a user prompt and optional system message.
     Returns the text response as a string.
+    TESTING MODEL
     """
     messages = []
 
@@ -71,3 +79,42 @@ def llm(
     )
 
     return response.choices[0].message.content.strip()
+
+
+
+
+# ==========================================
+# GEMINI IMPLEMENTATION
+# ==========================================
+
+# import os
+# from google import genai
+# from google.genai import types
+# from dotenv import load_dotenv
+
+# load_dotenv()
+
+# _client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# MODEL = "gemini-2.5-flash"
+
+# def llm(
+#     prompt: str,
+#     system: str = "",
+#     max_tokens: int = 4096,
+#     temperature: float = 0.2,
+# ) -> str:
+#     """
+#     Invoke the Gemini LLM with a user prompt and optional system message.
+#     Returns the text response as a string.
+#     """
+#     response = _client.models.generate_content(
+#         model=MODEL,
+#         contents=prompt,
+#         config=types.GenerateContentConfig(
+#             system_instruction=system if system else None,
+#             temperature=temperature,
+#             max_output_tokens=max_tokens,
+#         )
+#     )
+
+#     return response.text.strip()

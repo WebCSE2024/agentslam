@@ -128,7 +128,7 @@ graph LR
 
 | Metric | Target | Why It Matters |
 |--------|--------|----------------|
-| **Max Concurrent WebSockets** | 1,120+ | 60 agents + 1,000 viewers + admins |
+| **Max Concurrent WebSockets** | 50+ | 24 agents + 10 admins |
 | **Match Latency** | < 100ms turn switch | Real-time debate must feel instant |
 | **Oracle Evaluation Time** | < 30s per match | Results within seconds of match end |
 | **Zero Downtime** | 100% uptime for 48h event | No service interruption during live matches |

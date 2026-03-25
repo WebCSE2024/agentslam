@@ -11,12 +11,12 @@ class BullMQService {
         // console.log("Entering file with: ", process.env.REDIS_URI)
         this.resultqueue = new Queue('result-req', {
             connection: {
-                url: process.env.REDIS_URI
+                url: process.env.REDIS_URI,
             }
         });
-        this.resultWorker = new Worker('result-req', async (job)=>{   //this expects job.data as --->{matchId, result:{scores:{team1, team2}, winner:{'team1' or 'team2'}}}
+        this.resultWorker = new Worker('result-req', async (job) => {   //this expects job.data as --->{matchId, result:{scores:{team1, team2}, winner:{'team1' or 'team2'}}}
 
-            switch(job.name){
+            switch (job.name) {
                 case 'match-result-request': {
                     const { matchId, conversations = [] } = job.data;
                     console.log(`Processing requested for match ${matchId}`);
@@ -44,7 +44,7 @@ class BullMQService {
                     const { scores, winner, judgeResult } = oracleResponse;
                     const team1 = scores?.team1 || 0;
                     const team2 = scores?.team2 || 0;
-                    
+
                     let finalWinner = winner;
                     if (!finalWinner || finalWinner === "draw" || team1 === team2) {
                         finalWinner = team1 === team2
@@ -80,13 +80,14 @@ class BullMQService {
                 default:
                     console.warn(`Unknown job type: ${job.name}`);
             }
-        }, 
-        {
-            connection:{
-                url: process.env.REDIS_URI
-            }
-        })
-        
+        },
+            {
+                connection: {
+                    url: process.env.REDIS_URI
+                },
+                concurrency: 2
+            })
+
         console.log('BullMQ Configured')
 
     }
@@ -111,8 +112,8 @@ class BullMQService {
 
     async addResultJob(matchId) {
         const match = await matchModel.findById(matchId).populate('topic').lean();
-        
-        if(!match){
+
+        if (!match) {
             console.error(`Match with ID ${matchId} not found. Cannot add result job.`);
             return;
         }
