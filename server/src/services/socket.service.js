@@ -222,6 +222,9 @@ class SocketService {
                     }
 
                     ws.matchId = matchId;
+                    if (!this.socketStore.has(matchId)) {
+                        this.socketStore.set(matchId, new Set());
+                    }
                     this.socketStore.get(matchId).add(ws);
                     this.wss.emit('connection', ws, request);
                 })
