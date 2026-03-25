@@ -54,6 +54,9 @@ class MatchRouter {
 
         // GET /api/match/:matchId  — single match info
         this.router.get("/:matchId", authMiddleware, matchLimiter, matchController.getMatchInfo);
+
+        //POST /api/match/cancel/:matchId — cancel a match (admin)
+        this.router.post("/cancel/:matchId", authMiddleware, matchLimiter, matchController.cancelMatch);
     }
 }
 

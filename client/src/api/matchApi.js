@@ -27,3 +27,6 @@ export const resumeMatch = (matchId) =>
 
 export const updateMatchResult = (matchId, payload) =>
 	axiosInstance.post(`/match/result/${matchId}`, payload);
+
+export const cancelMatch = (matchId, payload) =>
+	axiosInstance.post(`/match/cancel/${matchId}`, payload);

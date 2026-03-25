@@ -21,7 +21,8 @@ export const MATCH_STATUS = {
     ACTIVE: "active",
     STARTED: "started",
     PAUSED: "paused",
-    COMPLETED: "completed"
+    COMPLETED: "completed",
+    CANCELLED: "cancelled",
 }
 
 export const TOPIC_TYPE = {
