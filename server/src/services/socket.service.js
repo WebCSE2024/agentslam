@@ -1,4 +1,4 @@
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { MATCH_STATUS, SOCKET_MESSAGE_TYPE, SOCKET_SENDER, USER_ROLE } from '../utils/enum.js';
 import bullmqService from './bullmq.service.js';
 import { sandboxSocketRateLimit, socketRateLimit } from '../middlewares/socketratelimit.middleware.js';
