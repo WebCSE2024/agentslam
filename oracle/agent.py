@@ -1,8 +1,8 @@
-# """
-# agent.py
-# --------
-# Central LLM interface. Import `llm` from here to invoke Claude.
-# """
+"""
+agent.py
+--------
+Central LLM interface. Import `llm` from here to invoke Claude.
+"""
 
 # import os
 # import anthropic
@@ -27,6 +27,7 @@
 #     kwargs = {
 #         "model": MODEL,
 #         "max_tokens": max_tokens,
+#         "temperature": temperature,
 #         "messages": [{"role": "user", "content": prompt}],
 #     }
 #     if system:
