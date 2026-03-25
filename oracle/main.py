@@ -38,6 +38,7 @@ class ConversationEntry(BaseModel):
 class DebateRequest(BaseModel):
     matchId: str = Field(..., example="match-001")
     topic: str = Field(..., example="The impact of AI on jobs")
+    description: str = Field(default="", example="Brief background on the topic.")
     for_the_motion: str = Field(..., example="A")
     against_the_motion: str = Field(..., example="B")
     conversations: List[ConversationEntry]

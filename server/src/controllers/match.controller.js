@@ -467,6 +467,9 @@ class MatchController{
 
         match.scores = result.scores;
         match.winner = result.winner === 'team1' ? match.opponents.team1.user : match.opponents.team2.user;
+        if (result.judgeResult !== undefined) {
+            match.judgeResult = result.judgeResult;
+        }
         match.matchStatus = MATCH_STATUS.COMPLETED;
         match.finishTime = 0;
         match.remainingTime = 0;

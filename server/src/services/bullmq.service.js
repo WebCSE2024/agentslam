@@ -19,27 +19,49 @@ class BullMQService {
             switch(job.name){
                 case 'match-result-request': {
                     const { matchId, conversations = [] } = job.data;
-                    console.log(`Mock processing requested for match ${matchId}`);
+                    console.log(`Processing requested for match ${matchId}`);
                     console.log(`Conversation length: ${conversations.length}`);
 
-                    // mock delay before publishing the computed result
-                    await new Promise((resolve) => setTimeout(resolve, 15000));
+                    const ORACLE_URL = process.env.ORACLE_URL || "http://localhost:8000";
+                    let oracleResponse;
+                    try {
+                        const axios = (await import('axios')).default;
+                        const res = await axios.post(`${ORACLE_URL}/judge`, {
+                            matchId,
+                            topic: job.data.topic,
+                            description: job.data.description,
+                            for_the_motion: job.data.for_the_motion,
+                            against_the_motion: job.data.against_the_motion,
+                            conversations: conversations
+                        });
+                        oracleResponse = res.data;
+                        console.log(`Oracle successfully generated a result for match ${matchId}`);
+                    } catch (error) {
+                        console.error(`Error requesting Oracle for match ${matchId}:`, error?.response?.data || error.message);
+                        throw error; // Let BullMQ retry
+                    }
 
-                    const team1 = this.getRandomScore();
-                    const team2 = this.getRandomScore();
-                    const winner = team1 === team2
-                        ? (Math.random() < 0.5 ? 'team1' : 'team2')
-                        : (team1 > team2 ? 'team1' : 'team2');
+                    const { scores, winner, judgeResult } = oracleResponse;
+                    const team1 = scores?.team1 || 0;
+                    const team2 = scores?.team2 || 0;
+                    
+                    let finalWinner = winner;
+                    if (!finalWinner || finalWinner === "draw" || team1 === team2) {
+                        finalWinner = team1 === team2
+                            ? (Math.random() < 0.5 ? 'team1' : 'team2')
+                            : (team1 > team2 ? 'team1' : 'team2');
+                    }
 
                     await this.resultqueue.add('match-result', {
                         matchId,
                         result: {
                             scores: { team1, team2 },
-                            winner
+                            winner: finalWinner,
+                            judgeResult
                         }
                     });
 
-                    console.log(`Mock result enqueued for match ${matchId}`);
+                    console.log(`Match result enqueued for match ${matchId}`);
                     break;
                 }
                 case 'match-result':
@@ -69,9 +91,7 @@ class BullMQService {
 
     }
 
-    getRandomScore() {
-        return Math.floor(Math.random() * 51) + 50;
-    }
+
 
     init() {
 

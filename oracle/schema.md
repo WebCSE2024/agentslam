@@ -10,6 +10,7 @@ This document describes the JSON formats used by the JudgeBot endpoint.
 {
   "matchId": "string",
   "topic": "string",
+  "description": "string",
   "for_the_motion": "string",
   "against_the_motion": "string",
   "conversations": [
@@ -35,19 +36,34 @@ This document describes the JSON formats used by the JudgeBot endpoint.
 
 ```json
 {
-  "summary": "string",
-  "disqualification": ["teamId", ...],
-  "scores": [["teamId", score], ...],
-  "remarks": "string"
+  "match_id": "string",
+  "topic": "string",
+  "winner": "teamId",
+  "scores": {
+    "team1": 85,
+    "team2": 92
+  },
+  "judgeResult": {
+    "summary": "string",
+    "disqualification": ["teamId", ...],
+    "disqualification_reasons": {},
+    "dimension_scores": {},
+    "penalty_breakdown": {},
+    "validation_summary": {},
+    "debate_quality": "string",
+    "notable_moments": "string",
+    "remarks": "string"
+  }
 }
 ```
 
 ### Fields
 
-- `summary` (string) - a short explanation of the judge's assessment.
-- `disqualification` (array of strings) - list of `teamId` values disqualified for unfair conduct.
-- `scores` (array of tuples) - each entry is `[teamId, score]` where `score` is a numeric value (typically 0-100) calculated using the scoring matrix.
-- `remarks` (string) - additional context, including reasons for disqualification and claim verification feedback.
+- `match_id` (string) - unique identifier for the match.
+- `topic` (string) - the debate topic.
+- `winner` (string) - the `teamId` of the winning team, or `draw`.
+- `scores` (object) - an object mapping the teams to their scores (typically 0-100) calculated using the scoring matrix.
+- `judgeResult` (object) - detailed metadata including reasoning, penalties, validation results, and remarks.
 
 ---
 
@@ -57,7 +73,7 @@ When scoring, the judge evaluates each team along four dimensions and applies we
 
 - **Persuasiveness** — 40%
 - **Logic** — 30%
-- **API Robustness** — 20%
+- **Structural Clarity** — 20%
 - **Agility** — 10%
 
 Scores are combined into a final weighted score.

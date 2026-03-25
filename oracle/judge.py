@@ -275,11 +275,11 @@ def run_judge(payload: dict) -> dict:
     val_summary = _build_validation_summary(validation_results)
  
     # ── STEP 9: Compose output ─────────────────────────────────────────────
-    scores_list = sorted(
-        [[tid, final_scores.get(tid, 0)] for tid in team_ids],
-        key=lambda x: x[1],
-        reverse=True,
-    )
+    # Server expects strict object for scores: {"team1": X, "team2": Y}
+    scores_obj = {
+        "team1": final_scores.get("team1", 0),
+        "team2": final_scores.get("team2", 0)
+    }
  
     # Penalty breakdown per team
     penalty_breakdown = {
@@ -303,14 +303,10 @@ def run_judge(payload: dict) -> dict:
         }
         for tid in team_ids
     }
- 
-    output = {
-        "match_id": match_id,
-        "topic": topic,
-        "winner": winner,
+    
+    judge_result = {
         "disqualification": disqualified,
         "disqualification_reasons": disqualification_reasons,
-        "scores": scores_list,
         "dimension_scores": dimension_scores,
         "penalty_breakdown": penalty_breakdown,
         "validation_summary": val_summary,
@@ -324,6 +320,14 @@ def run_judge(payload: dict) -> dict:
             f"{'Disqualifications: ' + ', '.join(disqualified) + '.' if disqualified else 'No disqualifications.'} "
             f"{'Winner: ' + str(winner) + '.' if winner else 'No winner (both disqualified or draw).'}"
         ),
+    }
+
+    output = {
+        "match_id": match_id,
+        "topic": topic,
+        "winner": winner,
+        "scores": scores_obj,
+        "judgeResult": judge_result
     }
  
     return output

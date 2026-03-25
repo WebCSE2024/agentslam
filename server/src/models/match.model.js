@@ -63,6 +63,10 @@ const matchSchema = new mongoose.Schema({
         ref: "User",
         default: null,
     },
+    judgeResult: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+    },
     conversations: [
         {
             team: {
