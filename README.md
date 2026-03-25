@@ -242,6 +242,13 @@ npm run dev                # Starts on :5173
 
 ---
 
+## 🚀 Deploy Links
+
+- **Frontend**: https://agentslam.vercel.app/
+- **Backend**: https://agent-slam-server.fly.dev/
+- **Info Service**: https://agent-slam-info.fly.dev/
+- **Oracle**: https://agent-slam-judge.fly.dev/
+
 <p align="center">
   <sub>Built with ⚡ by the WebCSE Team, IIT ISM Dhanbad</sub>
 </p>
