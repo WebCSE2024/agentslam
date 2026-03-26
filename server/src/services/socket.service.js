@@ -93,11 +93,11 @@ class SocketService {
                     return;
                 }
 
-                if(reqUrl.pathname === "/ws-sandbox"){
+                if (reqUrl.pathname === "/ws-sandbox") {
 
                     const payloadKey = reqUrl.searchParams.get("payload");
 
-                    if(!payloadKey){
+                    if (!payloadKey) {
                         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
                         socket.destroy();
                         return;
@@ -114,7 +114,7 @@ class SocketService {
                         return;
                     }
 
-                    if(decoded.type !== "sandbox"){
+                    if (decoded.type !== "sandbox") {
                         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
                         socket.destroy();
                         return;
@@ -146,8 +146,8 @@ class SocketService {
 
                 // ── Auth: passkey (query param) OR access_token (cookie) ──────────────
                 const passkeyParam = reqUrl.searchParams.get("passkey");
-                const cookies      = request.headers.cookie ? parseCookies(request.headers.cookie ?? ""): {};
-                const cookieToken  = cookies.access_token;
+                const cookies = request.headers.cookie ? parseCookies(request.headers.cookie ?? "") : {};
+                const cookieToken = cookies.access_token;
 
                 const rawToken = passkeyParam ?? cookieToken;
 
@@ -174,10 +174,10 @@ class SocketService {
                     return;
                 }
 
-                if(expectedType === 'passkey'){
+                if (expectedType === 'passkey') {
 
                     const connectedUser = await redisClient.get(decoded.sub);
-                    if(connectedUser){
+                    if (connectedUser) {
                         socket.write("HTTP/1.1 401 Already Connected!\r\n\r\n");
                         socket.destroy();
                         return;
@@ -186,7 +186,7 @@ class SocketService {
                     await redisClient.set(decoded.sub, "connected")
                 }
                 const userId = String(decoded.sub);
-                const sid    = decoded.sid;
+                const sid = decoded.sid;
 
                 // Session must still be alive in Redis
                 const activeSid = await redisClient.get(userSessionKey(userId));
@@ -206,16 +206,16 @@ class SocketService {
 
                 const matchState = await redisClient.hgetall(`match:${matchId}`);
 
-                if(!matchState || !Object.keys(matchState).length){
+                if (!matchState || !Object.keys(matchState).length) {
                     socket.write("HTTP/1.1 404 - Match Not Found\r\n\r\n");
                     socket.destroy();
                     return;
                 }
 
                 const team1Id = matchState.team1?.split(":")[0];
-                const team2Id = matchState.team2?.split(":")[0]; 
+                const team2Id = matchState.team2?.split(":")[0];
 
-                if(userId !== team1Id && userId !== team2Id && decoded.role !== USER_ROLE.ADMIN){
+                if (userId !== team1Id && userId !== team2Id && decoded.role !== USER_ROLE.ADMIN) {
                     socket.write("HTTP/1.1 403 Forbidden. Please visit the public match page to view the discussion.\r\n\r\n");
                     socket.destroy();
                     return;
@@ -228,14 +228,11 @@ class SocketService {
                         username: decoded.username,
                         email: decoded.email,
                         role: decoded.role,
-                        team: team1Id === userId ? "team1" : team2Id === userId ? "team2" : decoded.role=== USER_ROLE.ADMIN? 'admin':'viewer',
+                        team: team1Id === userId ? "team1" : team2Id === userId ? "team2" : decoded.role === USER_ROLE.ADMIN ? 'admin' : 'viewer',
                         authType: expectedType,
                     }
 
                     ws.matchId = matchId;
-                    if (!this.socketStore.has(matchId)) {
-                        this.socketStore.set(matchId, new Set());
-                    }
                     this.socketStore.get(matchId).add(ws);
                     this.wss.emit('connection', ws, request);
                 })
@@ -265,11 +262,11 @@ class SocketService {
                     }
                 });
             }
-            
+
             if (ws.readyState === WebSocket.OPEN) {
                 let welcomeMsg = `Welcome ${ws.user.username} to AgentSlam! You are connected as ${ws.user.team}.`
-                if(ws.user.team !== 'viewer'){
-                    welcomeMsg+=`Get ready to slam! Send debate messages using: { "type": "debate-message", "data": { "message": "your argument" } }.`;
+                if (ws.user.team !== 'viewer') {
+                    welcomeMsg += `Get ready to slam! Send debate messages using: { "type": "debate-message", "data": { "message": "your argument" } }.`;
                 }
                 sendSocketMessage(ws, buildSocketEnvelope({
                     type: SOCKET_MESSAGE_TYPE.WELCOME,
@@ -278,21 +275,21 @@ class SocketService {
                     },
                     from: SOCKET_SENDER.SYSTEM,
                 }));
-                
+
                 const matchState = await redisClient.hgetall(`match:${ws.matchId}`);
                 const formattedMatchState = formatMatchState(matchState);
                 sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.MATCH_STATE, data: formattedMatchState, from: SOCKET_SENDER.SYSTEM }));
 
-                if(matchState.status === MATCH_STATUS.STARTED){
+                if (matchState.status === MATCH_STATUS.STARTED) {
                     const prevConverations = await matchModel.findById(ws.matchId).lean().select("conversations").exec();
 
-                    if(prevConverations && prevConverations.conversations && prevConverations.conversations.length){
+                    if (prevConverations && prevConverations.conversations && prevConverations.conversations.length) {
                         sendSocketMessage(ws, buildSocketEnvelope({
                             type: SOCKET_MESSAGE_TYPE.PREVIOUS_MESSAGE,
                             data: { message: `Match is already live! Here are the previous conversations.`, conversations: prevConverations.conversations },
                             from: SOCKET_SENDER.SYSTEM,
                         }));
-                    }else{
+                    } else {
                         sendSocketMessage(ws, buildSocketEnvelope({
                             type: SOCKET_MESSAGE_TYPE.PREVIOUS_MESSAGE,
                             data: { message: `Match is already live! No conversations yet.`, conversations: [] },
@@ -318,11 +315,11 @@ class SocketService {
                     return;
                 }
 
-                const currTurn = matchState.turn; 
+                const currTurn = matchState.turn;
 
                 try {
                     message = JSON.parse(message.toString());
-                    if(!message.type || !message.data || typeof message.data.message !== "string" || !Object.values(SOCKET_MESSAGE_TYPE).includes(message.type)){
+                    if (!message.type || !message.data || typeof message.data.message !== "string" || !Object.values(SOCKET_MESSAGE_TYPE).includes(message.type)) {
                         throw new Error("Invalid message format");
                     }
                 } catch {
@@ -332,22 +329,22 @@ class SocketService {
                     return;
                 }
 
-                if(matchState.status !== MATCH_STATUS.STARTED){
-                    if(ws.readyState === WebSocket.OPEN){
+                if (matchState.status !== MATCH_STATUS.STARTED) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Match is not currently accepting message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
-                if(ws.user.team === 'viewer'){
-                    if(ws.readyState === WebSocket.OPEN){
+                if (ws.user.team === 'viewer') {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `You can't send message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
-                if(ws.user.team !== currTurn && ws.user.role !== USER_ROLE.ADMIN){
-                    if(ws.readyState === WebSocket.OPEN){
+                if (ws.user.team !== currTurn && ws.user.role !== USER_ROLE.ADMIN) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `It's not your turn! Please wait for your turn.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
@@ -355,18 +352,18 @@ class SocketService {
 
                 const textMessage = message?.data?.message;
 
-                if(textMessage && textMessage.length > MAX_CHAT_MESSAGE_SIZE){
-                    if(ws.readyState === WebSocket.OPEN){
+                if (textMessage && textMessage.length > MAX_CHAT_MESSAGE_SIZE) {
+                    if (ws.readyState === WebSocket.OPEN) {
                         sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Message exceeds maximum allowed size of ${MAX_CHAT_MESSAGE_SIZE} bytes. Please shorten your message.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
 
-                if(ws.user.role !== USER_ROLE.ADMIN && message.type === SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE){
+                if (ws.user.role !== USER_ROLE.ADMIN && message.type === SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE) {
 
                     const match = await matchModel.findById(ws.matchId);
 
-                    if(match && match.matchStatus === MATCH_STATUS.STARTED){
+                    if (match && match.matchStatus === MATCH_STATUS.STARTED) {
                         match.conversations.push({
                             team: ws.user.team,
                             user: ws.user.id,
@@ -378,22 +375,22 @@ class SocketService {
                         await redisClient.hset(`match:${ws.matchId}`, {
                             'turn': currTurn === "team1" ? "team2" : "team1", // Switch turn after each message
                         })
-                    }else{
-                        if(ws.readyState === WebSocket.OPEN){
+                    } else {
+                        if (ws.readyState === WebSocket.OPEN) {
                             sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Cannot send debate messages when match is not live.` }, from: SOCKET_SENDER.SYSTEM }));
                         }
                     }
                 }
 
-                if(socketList && socketList.size){
+                if (socketList && socketList.size) {
                     socketList.forEach(socket => {
-                        if(socket != ws && socket.readyState === WebSocket.OPEN){
+                        if (socket != ws && socket.readyState === WebSocket.OPEN) {
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE,
                                 data: { message: textMessage },
                                 from: resolveSocketSender(ws.user.team),
                             }));
-                        }else if(socket === ws && socket.readyState === WebSocket.OPEN){
+                        } else if (socket === ws && socket.readyState === WebSocket.OPEN) {
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.INFO,
                                 data: { message: 'acknowledged' },
@@ -410,12 +407,12 @@ class SocketService {
                     }
                 }
             })
-            
-            ws.on('close',(code, reason)=>{
+
+            ws.on('close', (code, reason) => {
                 const matchId = ws.matchId;
                 const sockets = this.socketStore.get(matchId);
                 const username = ws.user.username
-                if(sockets && sockets.size){
+                if (sockets && sockets.size) {
                     sockets.delete(ws);
                 }
 
@@ -423,9 +420,9 @@ class SocketService {
                 logInfo(`WebSocket client disconnected. Match ID: ${matchId}, Team: ${ws.user.team}, User: ${username}, Code: ${code}, Reason: ${reason}.`);
 
                 const remainingMatchSockets = this.getSocketsForMatch(matchId);
-                if(remainingMatchSockets && remainingMatchSockets.size){
+                if (remainingMatchSockets && remainingMatchSockets.size) {
                     remainingMatchSockets.forEach(socket => {
-                        if(socket.readyState === WebSocket.OPEN && socket != ws){
+                        if (socket.readyState === WebSocket.OPEN && socket != ws) {
                             sendSocketMessage(socket, buildSocketEnvelope({
                                 type: SOCKET_MESSAGE_TYPE.USER_LEFT,
                                 data: {
@@ -445,7 +442,7 @@ class SocketService {
             socket.destroy();
         });
 
-        this.wss.on('close',()=>{
+        this.wss.on('close', () => {
 
             logInfo('WebSocket server closed.');
         })
@@ -476,7 +473,7 @@ class SocketService {
                 const allowed = await sandboxSocketRateLimit(`sandbox:${ws.user.id}`, SANDBOX_MSG_LIMIT, SANDBOX_MSG_WINDOW);
                 if (!allowed) {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded.`}, from: SOCKET_SENDER.SYSTEM }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Rate limit exceeded.` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }
@@ -484,7 +481,7 @@ class SocketService {
                 let parsed;
                 try {
                     parsed = JSON.parse(rawMsg.toString());
-                    if(!parsed.type || !parsed.data || typeof parsed.data.message !== "string" || !Object.values(SOCKET_MESSAGE_TYPE).includes(parsed.type)){
+                    if (!parsed.type || !parsed.data || typeof parsed.data.message !== "string" || !Object.values(SOCKET_MESSAGE_TYPE).includes(parsed.type)) {
                         throw new Error("Invalid message format");
                     }
                 } catch {
@@ -520,9 +517,9 @@ class SocketService {
 
         // console.log(`Broadcasting to match ${matchId} - Type: ${type}, Data:`, data);
         const socketList = this.socketStore.get(matchId);
-        if(socketList && socketList.size){
+        if (socketList && socketList.size) {
             socketList.forEach(ws => {
-                if(ws.readyState === WebSocket.OPEN){
+                if (ws.readyState === WebSocket.OPEN) {
                     // console.log(`Broadcasting message to match ${matchId}:`, {type, data});
                     sendSocketMessage(ws, buildSocketEnvelope({ type, data, from: SOCKET_SENDER.SYSTEM }));
                 }
@@ -536,20 +533,20 @@ class SocketService {
     }
 
     setMatchTimeout = (matchId, interval) => {
-        const timer = setTimeout(async ()=>{
+        const timer = setTimeout(async () => {
 
             this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_UPDATE, { message: `Time's up!` });
 
             try {
                 const matchState = await redisClient.hgetall(`match:${matchId}`);
-    
+
                 await redisClient.hset(`match:${matchId}`, {
                     'status': MATCH_STATUS.COMPLETED,
                     'turn': null,
                     'finishTime': 0,
                     'remainingTime': 0,
                 })
-    
+
                 await matchModel.findByIdAndUpdate(matchId, {
                     $set: { matchStatus: MATCH_STATUS.COMPLETED, finishTime: 0, remainingTime: 0 }
                 }, { new: true });
@@ -576,7 +573,7 @@ class SocketService {
         return timer;
     }
 
-    startMatch =  async (matchId, finishTime, turn, duration) => {
+    startMatch = async (matchId, finishTime, turn, duration) => {
 
         const existingTimer = this.timerStore.get(matchId);
         if (existingTimer) {
@@ -598,7 +595,7 @@ class SocketService {
         logInfo(`Match paused successfully. Match ID: ${matchId}, Remaining time (ms): ${timeRemaining}.`);
         this.broadcastToMatch(matchId, SOCKET_MESSAGE_TYPE.MATCH_PAUSED, { timeRemaining, message: "Match has been paused." });
         const timer = this.timerStore.get(matchId);
-        if(timer){
+        if (timer) {
             clearTimeout(timer);
             this.timerStore.delete(matchId);
         }
@@ -634,28 +631,28 @@ class SocketService {
             .catch((error) => {
                 console.error(`Failed to broadcast resumed match state for ${matchId}:`, error);
             });
-        
+
         const timer = this.setMatchTimeout(matchId, Number(remainingTime));
 
         this.timerStore.set(matchId, timer);
     }
 
-    registerMatch = (matchId) =>{
+    registerMatch = (matchId) => {
 
-        if(!this.socketStore.has(matchId)){
+        if (!this.socketStore.has(matchId)) {
             this.socketStore.set(matchId, new Set());
             logInfo(`Match registered in socket store successfully. Match ID: ${matchId}.`);
         }
     }
 
     unregisterMatch = (matchId, code = 1000, reason = 'Match session closed') => {
-        
-        if(this.timerStore.has(matchId)){
+
+        if (this.timerStore.has(matchId)) {
             clearTimeout(this.timerStore.get(matchId));
             this.timerStore.delete(matchId);
         }
         const sockets = this.socketStore.get(matchId);
-        if(sockets && sockets.size){
+        if (sockets && sockets.size) {
             sockets.forEach(socket => {
                 try {
                     if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
@@ -664,7 +661,7 @@ class SocketService {
                             if (socket.readyState !== WebSocket.CLOSED) {
                                 socket.terminate();
                             }
-                        }, 200);     
+                        }, 200);
                     }
                 } catch (error) {
                     console.error(`Error closing socket for match ${matchId}:`, error);
