@@ -245,7 +245,7 @@ def run_judge(payload: dict) -> dict:
     # ── STEP 5: Apply penalties to scores ─────────────────────────────────
     final_scores = compute_final_scores(llm_score_data, penalties, team_ids)
  
-    # Override disqualified teams to 0
+    # Override disqualified teams to 0 (severe violation)
     for tid in disqualified:
         final_scores[tid] = 0
  
@@ -256,8 +256,8 @@ def run_judge(payload: dict) -> dict:
     elif len(active_teams) == 0:
         winner = None  # Both disqualified
     else:
-        winner = max(active_teams, key=lambda t: final_scores.get(t, 0))
-        if final_scores.get(for_team, 0) == final_scores.get(against_team, 0):
+        winner = max(active_teams, key=lambda t: final_scores.get(t, 50))
+        if final_scores.get(for_team, 50) == final_scores.get(against_team, 50):
             winner = "draw"
  
     # ── STEP 7: Generate remarks ───────────────────────────────────────────
@@ -277,8 +277,8 @@ def run_judge(payload: dict) -> dict:
     # ── STEP 9: Compose output ─────────────────────────────────────────────
     # Server expects strict object for scores: {"team1": X, "team2": Y}
     scores_obj = {
-        "team1": final_scores.get("team1", 0),
-        "team2": final_scores.get("team2", 0)
+        "team1": final_scores.get("team1", 50),
+        "team2": final_scores.get("team2", 50)
     }
  
     # Penalty breakdown per team

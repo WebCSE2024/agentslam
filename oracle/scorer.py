@@ -95,10 +95,10 @@ Respond ONLY with a JSON object:
 {
   "team_scores": {
     "<teamId>": {
-      "persuasiveness": <0-100>,
-      "logic": <0-100>,
-      "structural_clarity": <0-100>,
-      "agility": <0-100>,
+      "persuasiveness": <50-100>,
+      "logic": <50-100>,
+      "structural_clarity": <50-100>,
+      "agility": <50-100>,
       "raw_score": <effective weighted total 50-100>,
       "reasoning": "2-3 sentences on this team's performance"
     },
@@ -188,8 +188,11 @@ def compute_final_scores(
     team_scores = llm_scores.get("team_scores", {})
 
     for tid in team_ids:
-        raw = team_scores.get(tid, {}).get("raw_score", 50)
+        raw = team_scores.get(tid, {}).get("raw_score", 70)
         penalty = penalties.get(tid, {}).get("total_penalty", 0)
-        final[tid] = max(0, raw - penalty)
+        
+        # Apply penalty, but strictly enforce a 50-100 range mathematically
+        final_score = max(50, min(100, raw - penalty))
+        final[tid] = final_score
 
     return final

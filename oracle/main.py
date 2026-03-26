@@ -49,7 +49,7 @@ class DebateRequest(BaseModel):
 # ──────────────────────────────────────────────
  
 @app.post("/judge")
-async def judge_debate(request: DebateRequest):
+def judge_debate(request: DebateRequest):
     """
     Main judging endpoint. Accepts a structured debate and returns:
     - Winner, scores, penalties, claim validation details, and judge remarks.
@@ -57,6 +57,7 @@ async def judge_debate(request: DebateRequest):
     try:
         payload = request.model_dump()
         result = run_judge(payload)
+        print(result)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Judging pipeline error: {str(e)}\n{traceback.format_exc()}")
