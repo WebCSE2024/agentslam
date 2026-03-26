@@ -3,7 +3,7 @@ const { body } = require('express-validator');
 const Match = require('../models/Match');
 const DebateMessage = require('../models/DebateMessage');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
-const { getDebateState, submitTurn } = require('../services/debateService');
+const { submitTurn } = require('../services/debateService');
 const validate = require('../middleware/validate');
 
 const router = express.Router();
@@ -13,7 +13,8 @@ router.use(apiKeyAuth);
 
 /**
  * GET /api/debate/session
- * Returns the current ongoing/scheduled match for the authenticated bot's team.
+ * Returns only what the bot needs to know right now:
+ * the topic, its assigned role, whether it's its turn, and the deadline.
  */
 router.get('/session', async (req, res, next) => {
     try {
@@ -23,28 +24,31 @@ router.get('/session', async (req, res, next) => {
             status: { $in: ['scheduled', 'ongoing'] },
         })
             .populate('topic', 'title description')
-            .populate('team1', 'name')
-            .populate('team2', 'name')
-            .populate('currentTurn', 'name')
             .sort({ createdAt: -1 });
 
         if (!match) {
-            return res.json({ success: true, message: 'No active session found', data: null });
+            return res.json({ active: false });
         }
 
-        // Tell the bot its role in this match
-        const isTeam1 = match.team1._id.toString() === teamId.toString();
+        const isTeam1 = match.team1.toString() === teamId.toString();
         const myRole = isTeam1 ? match.team1Role : (match.team1Role === 'for' ? 'against' : 'for');
-        const isMyTurn = match.currentTurn && match.currentTurn._id.toString() === teamId.toString();
+        const isMyTurn = match.status === 'ongoing' &&
+            match.currentTurn &&
+            match.currentTurn.toString() === teamId.toString();
 
         res.json({
-            success: true,
-            data: {
-                match,
-                myRole,
-                isMyTurn,
-                turnDeadline: match.turnDeadline,
+            active: true,
+            matchId: match._id,
+            status: match.status,
+            topic: {
+                title: match.topic.title,
+                description: match.topic.description || '',
             },
+            myRole,        // "for" or "against"
+            isMyTurn,
+            turnNumber: match.turnNumber,
+            maxTurns: match.maxTurns,
+            turnDeadline: match.turnDeadline,  // null if match not started yet
         });
     } catch (err) {
         next(err);
@@ -53,58 +57,55 @@ router.get('/session', async (req, res, next) => {
 
 /**
  * POST /api/debate/session/:matchId/submit
- * Submit a debate argument for the current turn.
- * Body: { content: "your argument text" }
+ * Body: { "argument": "your rebuttal or point here" }
+ *
+ * The server timestamps the submission itself — bots do NOT send a timestamp.
+ * Returns minimal acknowledgement.
  */
 router.post(
     '/session/:matchId/submit',
-    [body('content').trim().notEmpty().withMessage('Argument content is required')],
+    [body('argument').trim().notEmpty().withMessage('argument is required')],
     validate,
     async (req, res, next) => {
         try {
             const { matchId } = req.params;
-            const { content } = req.body;
+            const { argument } = req.body;
 
-            const result = await submitTurn(matchId, req.team, content);
+            const result = await submitTurn(matchId, req.team, argument);
 
-            // Emit real-time events
+            // Emit real-time events to web observers
             const io = req.app.get('io');
             if (io) {
                 if (result.isMatchOver) {
                     io.to(`match:${matchId}`).emit('debate:ended', {
                         matchId,
-                        status: 'completed',
                         winner: result.match.winner,
                         isDraw: result.match.isDraw,
                     });
                 } else {
                     io.to(`match:${matchId}`).emit('debate:newTurn', {
                         matchId,
-                        currentTurn: result.match.currentTurn,
                         turnNumber: result.match.turnNumber,
-                        lastMessage: {
-                            team: req.team._id,
-                            role: result.message.role,
-                            content: result.message.content,
-                            turnNumber: result.message.turnNumber,
-                        },
+                        currentTurn: result.match.currentTurn,
                     });
                 }
             }
 
+            if (result.isMatchOver) {
+                return res.json({
+                    accepted: true,
+                    matchOver: true,
+                    winner: result.match.winner,
+                    isDraw: result.match.isDraw,
+                });
+            }
+
             res.json({
-                success: true,
-                message: result.isMatchOver ? 'Match complete' : 'Turn submitted',
-                data: {
-                    message: result.message,
-                    match: {
-                        status: result.match.status,
-                        turnNumber: result.match.turnNumber,
-                        currentTurn: result.match.currentTurn,
-                        turnDeadline: result.match.turnDeadline,
-                    },
-                    ...(result.isMatchOver && { judge: result.judgeResult }),
-                },
+                accepted: true,
+                matchOver: false,
+                turnNumber: result.match.turnNumber,   // next turn number
+                nextTurn: result.match.currentTurn,    // ID of team whose turn is next
+                turnDeadline: result.match.turnDeadline,
             });
         } catch (err) {
             next(err);
@@ -114,29 +115,34 @@ router.post(
 
 /**
  * GET /api/debate/session/:matchId/transcript
- * Get the full transcript of a match so far.
+ * Returns only: role, argument text, and server-recorded time for each turn.
  */
 router.get('/session/:matchId/transcript', async (req, res, next) => {
     try {
         const { matchId } = req.params;
         const teamId = req.team._id;
 
-        // Ensure the requesting team is part of this match
-        const match = await Match.findById(matchId);
-        if (!match) return res.status(404).json({ success: false, message: 'Match not found' });
+        const match = await Match.findById(matchId).select('team1 team2');
+        if (!match) return res.status(404).json({ error: 'Match not found' });
 
         const isParticipant =
             match.team1.toString() === teamId.toString() ||
             match.team2.toString() === teamId.toString();
         if (!isParticipant) {
-            return res.status(403).json({ success: false, message: 'Your team is not part of this match' });
+            return res.status(403).json({ error: 'Your team is not part of this match' });
         }
 
         const transcript = await DebateMessage.find({ match: matchId })
-            .populate('team', 'name')
+            .select('role content createdAt turnNumber -_id')
             .sort({ turnNumber: 1 });
 
-        res.json({ success: true, count: transcript.length, data: transcript });
+        // Return flat array — only role, argument, server timestamp, turn number
+        res.json(transcript.map(m => ({
+            turn: m.turnNumber,
+            role: m.role,
+            argument: m.content,
+            receivedAt: m.createdAt,   // set by server, never by the bot
+        })));
     } catch (err) {
         next(err);
     }
