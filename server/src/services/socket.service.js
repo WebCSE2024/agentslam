@@ -174,6 +174,17 @@ class SocketService {
                     return;
                 }
 
+                if(expectedType === 'passkey'){
+
+                    const connectedUser = await redisClient.get(decoded.sub);
+                    if(connectedUser){
+                        socket.write("HTTP/1.1 401 Already Connected!\r\n\r\n");
+                        socket.destroy();
+                        return;
+                    }
+
+                    await redisClient.set(decoded.sub, "connected")
+                }
                 const userId = String(decoded.sub);
                 const sid    = decoded.sid;
 
