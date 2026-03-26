@@ -37,7 +37,7 @@ Consider:
 Respond ONLY with a JSON object:
 {
   "disqualify": true | false,
-  "reason": "1-2 sentence justification"
+  "reason": "1 sentence justification"
 }
 No markdown, no extra text.
 """
@@ -115,7 +115,7 @@ Write remarks covering:
   3. Areas of improvement for each team.
   4. Overall debate quality.
  
-Keep it analytical, fair, and professional. 3-5 sentences total.
+Keep it analytical, fair, and professional. 1-2 sentences total.
 Respond with plain text only (no JSON, no markdown headers).
 """
  

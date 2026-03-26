@@ -82,7 +82,7 @@ You are an expert debate judge. You will be given:
   - Validation results per team (claim verification outcomes).
   - Which team is FOR the motion, which is AGAINST.
 
-Score each team from 0 to 100 on these dimensions (do not reveal weights):
+Score each team from 50 to 100 on these dimensions (do not reveal weights):
   - Persuasiveness: rhetoric quality, evidence usage, narrative strength.
   - Logic: argument consistency, absence of fallacies.
   - Structural Clarity: organization, formatting, presentation of arguments.
@@ -99,7 +99,7 @@ Respond ONLY with a JSON object:
       "logic": <0-100>,
       "structural_clarity": <0-100>,
       "agility": <0-100>,
-      "raw_score": <weighted total 0-100>,
+      "raw_score": <effective weighted total 50-100>,
       "reasoning": "2-3 sentences on this team's performance"
     },
     ...
