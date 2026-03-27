@@ -79,8 +79,7 @@ class BullMQService {
             {
                 connection: {
                     url: process.env.REDIS_URI
-                },
-                concurrency: 2
+                }
             })
 
         console.log('BullMQ Configured')
