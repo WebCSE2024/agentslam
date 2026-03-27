@@ -46,11 +46,6 @@ class BullMQService {
                     const team2 = scores?.team2 || 0;
 
                     let finalWinner = winner;
-                    if (!finalWinner || finalWinner === "draw" || team1 === team2) {
-                        finalWinner = team1 === team2
-                            ? (Math.random() < 0.5 ? 'team1' : 'team2')
-                            : (team1 > team2 ? 'team1' : 'team2');
-                    }
 
                     await this.resultqueue.add('match-result', {
                         matchId,

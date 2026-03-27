@@ -307,7 +307,7 @@ When sent: Sandbox payload is not valid JSON format or missing required fields.
 	"from": "system",
 	"data": {
 		"message": "Invalid format. Send JSON: 
-		{ 'type': 'sandbox-message', 'data': { 'message': '...' } }"
+		{ \"type\": \"sandbox-message\", \"data\": { \"message\": \"...\" } }"
 	}
 }
 ```

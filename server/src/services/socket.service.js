@@ -486,7 +486,7 @@ class SocketService {
                     }
                 } catch {
                     if (ws.readyState === WebSocket.OPEN) {
-                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { 'type': 'sandbox-message', 'data': { 'message': '...' } }` }, from: SOCKET_SENDER.SYSTEM }));
+                        sendSocketMessage(ws, buildSocketEnvelope({ type: SOCKET_MESSAGE_TYPE.ERROR, data: { message: `Invalid format. Send JSON: { \"type\": \"sandbox-message\", \"data\": { \"message\": \"...\" } }` }, from: SOCKET_SENDER.SYSTEM }));
                     }
                     return;
                 }

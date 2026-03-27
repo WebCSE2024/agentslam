@@ -206,10 +206,10 @@ def validate_message(team_id: str, message: str) -> dict:
             ...
         ],
         "total_claims": int,
-        "supported_count": int,
+        "supported_with_url_count": int,
+        "supported_no_url_count": int,
         "contradicted_count": int,
         "insufficient_count": int,
-        "missing_url_count": int,
     }
     """
     # Step 1: injection check
@@ -219,10 +219,10 @@ def validate_message(team_id: str, message: str) -> dict:
     claims = extract_claims(message)
 
     validated_claims = []
-    supported = 0
+    supported_with_url = 0
+    supported_no_url = 0
     contradicted = 0
     insufficient = 0
-    missing_url = 0
 
     for item in claims:
         claim_text = item.get("claim", "")
@@ -231,21 +231,22 @@ def validate_message(team_id: str, message: str) -> dict:
         if url:
             validation = validate_claim_with_url(claim_text, url)
         else:
-            # No URL provided — this is already a rule violation (claim without citation)
-            # Still try to verify via search
+            # No URL provided — try to verify via standard LangSearch instead of penalizing
             validation = validate_claim_without_url(claim_text)
-            missing_url += 1
 
         verdict = validation.get("verdict", "insufficient")
         if verdict == "supported":
-            supported += 1
+            if url is not None:
+                supported_with_url += 1
+            else:
+                supported_no_url += 1
         elif verdict == "contradicted":
             contradicted += 1
         else:
             insufficient += 1
 
-        # Flag for penalty if contradicted or no URL
-        penalty_flag = (verdict == "contradicted") or (url is None)
+        # Flag for penalty ONLY if contradicted (missing URL is no longer penalized)
+        penalty_flag = (verdict == "contradicted")
 
         validated_claims.append({
             "claim": claim_text,
@@ -259,8 +260,8 @@ def validate_message(team_id: str, message: str) -> dict:
         "injection_check": injection,
         "claims": validated_claims,
         "total_claims": len(claims),
-        "supported_count": supported,
+        "supported_with_url_count": supported_with_url,
+        "supported_no_url_count": supported_no_url,
         "contradicted_count": contradicted,
         "insufficient_count": insufficient,
-        "missing_url_count": missing_url,
     }
