@@ -715,7 +715,7 @@ export default function AdminDashboard({ mode = "dashboard" }) {
   }, [loadMatches, loadRounds, manualMatchForm]);
 
   const handleResetTournament = useCallback(async () => {
-    const confirmed = window.confirm("Reset tournament data? This action cannot be undone.");
+    const confirmed = window.confirm("Reset tournament data? This action resets the Tournament data.");
     if (!confirmed) return;
 
     setResettingType("tournament");
@@ -731,7 +731,7 @@ export default function AdminDashboard({ mode = "dashboard" }) {
   }, [loadMatches, loadRounds]);
 
   const handleResetAll = useCallback(async () => {
-    const confirmed = window.confirm("Reset everything? This will clear all tournament and related data.");
+    const confirmed = window.confirm("Reset everything? This will clear both Tournament and User Related data.");
     if (!confirmed) return;
 
     setResettingType("all");

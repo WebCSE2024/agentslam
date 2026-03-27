@@ -255,8 +255,13 @@ class MatchController{
 
         match.matchStatus = MATCH_STATUS.STARTED;
         const turn = Math.random() < 0.5 ? 'team1' : 'team2';
-        const finishTime = Date.now() + MATCH_DURATION
+        
+        if (!match.matchStartTime || Number(match.matchStartTime) <= 0) {
+            match.matchStartTime = Date.now();
+        }
+        const finishTime = Number(match.matchStartTime) + MATCH_DURATION;
         match.finishTime = finishTime;
+
         match.remainingTime = 0;
         await match.save();
         logInfo(`Match state saved successfully. Match ID: ${matchId}, Status: ${match.matchStatus}, Finish time: ${new Date(finishTime).toISOString()}.`);
@@ -437,7 +442,7 @@ class MatchController{
 
     getAllMatches = asyncHandler(async(req, res) => {
         const matches = await matchModel.find({})
-        .select("opponents.team1.user opponents.team2.user round matchStatus scores winner createdAt")
+        .select("opponents.team1.user opponents.team2.user round matchStatus scores winner createdAt matchStartTime finishTime")
         .populate("opponents.team1.user", "_id name email")
         .populate("opponents.team2.user", "_id name email")
         .populate("round", "_id roundName roundStatus createdAt")
@@ -471,7 +476,9 @@ class MatchController{
             match.judgeResult = result.judgeResult;
         }
         match.matchStatus = MATCH_STATUS.COMPLETED;
-        match.finishTime = 0;
+        if (!match.finishTime || Number(match.finishTime) <= 0) {
+            match.finishTime = Date.now();
+        }
         match.remainingTime = 0;
         await match.save();
         logInfo(`Match result saved successfully. Match ID: ${matchId}, Status: ${match.matchStatus}.`);

@@ -543,12 +543,11 @@ class SocketService {
                 await redisClient.hset(`match:${matchId}`, {
                     'status': MATCH_STATUS.COMPLETED,
                     'turn': null,
-                    'finishTime': 0,
                     'remainingTime': 0,
                 })
 
                 await matchModel.findByIdAndUpdate(matchId, {
-                    $set: { matchStatus: MATCH_STATUS.COMPLETED, finishTime: 0, remainingTime: 0 }
+                    $set: { matchStatus: MATCH_STATUS.COMPLETED, remainingTime: 0 }
                 }, { new: true });
                 logInfo(`Match state saved successfully. Match ID: ${matchId}, Status: ${MATCH_STATUS.COMPLETED}.`);
 

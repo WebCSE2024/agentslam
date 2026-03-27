@@ -94,6 +94,8 @@ class PublicMatchController {
         data: {
           _id: match._id,
           matchStatus: match.matchStatus,
+          matchStartTime: match.matchStartTime || 0,
+          finishTime: match.finishTime || 0,
           scores: match.scores,
           winner: match?.winner || null,
           round: match.round,

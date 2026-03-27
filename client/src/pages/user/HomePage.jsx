@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, Trophy, Mail, Hash, Loader2 } from "lucide-react";
+import { Trophy, Mail, Hash, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { UserContext } from "@/contexts/UserContext";
 import { getLeaderBoard } from "@/api/roundApi";
@@ -59,7 +59,11 @@ export default function HomePage() {
       >
         <div className="flex items-center gap-4 mb-4">
           <div className="h-12 w-12 rounded-2xl bg-black flex items-center justify-center border border-slate-800 shadow">
-            <Bot className="h-7 w-7 text-white" />
+            <img
+              src="/banner.png"
+              alt="AgentSlam banner"
+              className="h-full w-full rounded-2xl object-cover"
+            />
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight font-heading">

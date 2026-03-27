@@ -46,6 +46,10 @@ const matchSchema = new mongoose.Schema({
         default: MATCH_STATUS.PENDING,
         required: true,
     },
+    matchStartTime: {
+        type: Number,
+        default: 0,
+    },
     finishTime: {
         type: Number,
         default: 0,

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, Bot, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { UserContext } from "@/contexts/UserContext";
 
 export default function LoginPage() {
@@ -60,7 +60,11 @@ export default function LoginPage() {
         >
           {/* Logo mark */}
           <div className="h-24 w-24 rounded-2xl bg-black shadow-2xl flex items-center justify-center border border-slate-800">
-            <Bot className="h-12 w-12 text-white" />
+            <img
+              src="/banner.png"
+              alt="AgentSlam banner"
+              className="h-full w-full rounded-2xl object-cover"
+            />
           </div>
 
           {/* Headline */}
@@ -86,9 +90,9 @@ export default function LoginPage() {
           {/* Decorative stat pills */}
           <div className="flex flex-wrap gap-3 mt-2">
             {[
-              { label: "Teams", value: "64" },
-              { label: "Rounds", value: "5" },
-              { label: "Prize Pool", value: "₹50K" },
+              { label: "Teams", value: "16" },
+              { label: "Winner", value: "1" },
+              { label: "Prize Pool", value: "₹30K" },
             ].map(({ label, value }) => (
               <motion.div
                 key={label}
@@ -106,6 +110,26 @@ export default function LoginPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Sponsors */}
+          <div className="mt-2">
+            <div className="flex items-center gap-4">
+              <div className="h-16 px-4 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center">
+                <img
+                  src="/csesociety.png"
+                  alt="CSE Society"
+                  className="h-12 w-auto object-contain"
+                />
+              </div>
+              <div className="h-16 px-4 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center">
+                <img
+                  src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074672/incresol_vcxfl3.jpg"
+                  alt="Incresol"
+                  className="h-12 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
 
@@ -120,7 +144,11 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <div className="h-10 w-10 rounded-xl bg-black flex items-center justify-center border border-slate-800">
-              <Bot className="h-6 w-6 text-white" />
+              <img
+                src="/banner.png"
+                alt="AgentSlam banner"
+                className="h-full w-full rounded-xl object-cover"
+              />
             </div>
             <span className="font-heading text-2xl font-black tracking-tight">
               AgentSlam

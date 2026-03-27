@@ -83,8 +83,6 @@ export function matchResultEmailTemplate({
           <p style="margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.08em;">Sponsors</p>
           <div>
             <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/iit-ism_aniwql.png" alt="IIT ISM" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
-            <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/icici_qvyky8.jpg" alt="ICICI Bank" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
-            <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/apparent_hz77uq.png" alt="Apparent Energy" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
             <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074672/incresol_vcxfl3.jpg" alt="Incresol" style="height: 28px; display: inline-block; margin-right: 0; margin-bottom: 6px;" />
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Swords, Target, CircleCheckBig, Play, Sparkles, X, ChevronDown, Search, RotateCcw } from "lucide-react";
+import { Swords, Target, CircleCheckBig, Play, Sparkles, X, ChevronDown, Search, RotateCcw, MessageSquareText } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -366,6 +366,8 @@ export default function CommonMatchesPage() {
                   const currentUserId = String(user?._id || user?.id || "");
                   const isParticipant = !!currentUserId && [m.team1Id, m.team2Id].includes(currentUserId);
                   const canViewMatch = isAdmin || isParticipant;
+                  const detailPath = isAdmin ? `/admin/matches/${m._id}` : `/matches/${m._id}`;
+                  const isCompletedMatch = displayStatus === "completed";
 
                   return (
                     <motion.div
@@ -450,17 +452,25 @@ export default function CommonMatchesPage() {
                             </Button>
                           )}
 
-                          {canViewMatch && canEnterStatuses.has(displayStatus) ? (
+                          {canViewMatch && isCompletedMatch ? (
                             <Button
                               size="sm"
                               className="gap-2 bg-slate-900 hover:bg-black text-white"
-                              onClick={() => navigate(isAdmin ? `/admin/matches/${m._id}` : `/matches/${m._id}`)}
+                              onClick={() => navigate(detailPath)}
+                            >
+                              <MessageSquareText className="h-4 w-4" /> Conversations
+                            </Button>
+                          ) : canViewMatch && canEnterStatuses.has(displayStatus) ? (
+                            <Button
+                              size="sm"
+                              className="gap-2 bg-slate-900 hover:bg-black text-white"
+                              onClick={() => navigate(detailPath)}
                             >
                               <Play className="h-4 w-4" /> Enter
                             </Button>
                           ) : canViewMatch ? (
                             <Button size="sm" variant="outline" disabled>
-                              Enter
+                              {isCompletedMatch ? "Conversations" : "Enter"}
                             </Button>
                           ) : null}
                         </div>

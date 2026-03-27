@@ -53,6 +53,14 @@ const fmtTime = (iso) => {
   return dt.toLocaleString();
 };
 
+const fmtEpoch = (value) => {
+  const ms = Number(value || 0);
+  if (!ms) return "—";
+  const dt = new Date(ms);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return dt.toLocaleString();
+};
+
 const fmtCountdown = (ms) => {
   const safe = Math.max(0, Number(ms || 0));
   const totalSec = Math.floor(safe / 1000);
@@ -181,27 +189,12 @@ export default function MatchDetailPage() {
         appendMessage({ type, from, timestamp, text });
       }
 
-      if (type === SOCKET_MESSAGE_TYPE.MATCH_PAUSED) {
-        setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "paused" } : prev));
-        setMatchState((prev) => ({
-          ...(prev || {}),
-          status: "paused",
-          finishTime: 0,
-          remainingTime: Number(payload?.data?.timeRemaining || prev?.remainingTime || 0),
-        }));
-      } else if (type === SOCKET_MESSAGE_TYPE.MATCH_RESUMED) {
-        setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "started" } : prev));
-        if (payload?.data?.finishTime) {
-          setMatchState((prev) => ({
-            ...(prev || {}),
-            status: "started",
-            finishTime: Number(payload.data.finishTime),
-            remainingTime: 0,
-          }));
-        }
-      } else if (type === SOCKET_MESSAGE_TYPE.MATCH_FINISH) {
-        setMatchInfo((prev) => (prev ? { ...prev, matchStatus: "completed" } : prev));
-        setMatchState((prev) => ({ ...(prev || {}), status: "completed", finishTime: 0, remainingTime: 0 }));
+      if (
+        type === SOCKET_MESSAGE_TYPE.MATCH_PAUSED
+        || type === SOCKET_MESSAGE_TYPE.MATCH_RESUMED
+        || type === SOCKET_MESSAGE_TYPE.MATCH_FINISH
+      ) {
+        loadMatchInfo();
       }
     };
 
@@ -212,7 +205,7 @@ export default function MatchDetailPage() {
         // no-op
       }
     };
-  }, [appendMessage, matchId]);
+  }, [appendMessage, loadMatchInfo, matchId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -221,9 +214,9 @@ export default function MatchDetailPage() {
   }, [messages]);
 
   useEffect(() => {
-    const status = matchState?.status || matchInfo?.matchStatus;
-    const finishTime = Number(matchState?.finishTime || 0);
-    const pausedRemaining = Number(matchState?.remainingTime || 0);
+    const status = matchInfo?.matchStatus;
+    const finishTime = Number(matchInfo?.finishTime || 0);
+    const pausedRemaining = Number(matchInfo?.remainingTime || 0);
 
     if (status === "paused") {
       setTimeLeftMs(pausedRemaining);
@@ -239,7 +232,7 @@ export default function MatchDetailPage() {
 
     setTimeLeftMs(0);
     return undefined;
-  }, [matchInfo?.matchStatus, matchState?.finishTime, matchState?.remainingTime, matchState?.status]);
+  }, [matchInfo?.finishTime, matchInfo?.matchStatus, matchInfo?.remainingTime]);
 
   const onAdminAction = useCallback(async (type) => {
     if (!matchId) return;
@@ -286,7 +279,7 @@ export default function MatchDetailPage() {
     }
   }, [loadMatchInfo, matchId, resultForm.winner]);
 
-  const effectiveStatus = matchState?.status || matchInfo?.matchStatus;
+  const effectiveStatus = matchInfo?.matchStatus || matchState?.status;
   const currentTurn =
     effectiveStatus === "started" && (matchState?.turn === "team1" || matchState?.turn === "team2")
       ? matchState.turn
@@ -295,6 +288,8 @@ export default function MatchDetailPage() {
   const canPause = effectiveStatus === "started";
   const canResume = effectiveStatus === "paused";
   const canShowInlineResultForm = isAdmin && effectiveStatus !== "completed" && effectiveStatus !== "cancelled";
+  const dbStartTime = Number(matchInfo?.matchStartTime || 0);
+  const dbFinishTime = Number(matchInfo?.finishTime || 0);
   const winnerDisplay = useMemo(() => {
     const winnerName = matchInfo?.winner?.name ? String(matchInfo.winner.name).toUpperCase() : "";
     if (effectiveStatus === "cancelled") return winnerName || "NONE";
@@ -309,11 +304,66 @@ export default function MatchDetailPage() {
   const roleByTeam = useMemo(() => {
     const prosTeam = matchState?.pros;
     const consTeam = matchState?.cons;
+
+    const team1TopicType = String(matchInfo?.opponents?.team1?.topicType || "").toUpperCase();
+    const team2TopicType = String(matchInfo?.opponents?.team2?.topicType || "").toUpperCase();
+
+    const fallbackTeam1 = team1TopicType === "PROS" ? "PROS" : team1TopicType === "CONS" ? "CONS" : "—";
+    const fallbackTeam2 = team2TopicType === "PROS" ? "PROS" : team2TopicType === "CONS" ? "CONS" : "—";
+
     return {
-      team1: prosTeam === "team1" ? "PROS" : consTeam === "team1" ? "CONS" : "—",
-      team2: prosTeam === "team2" ? "PROS" : consTeam === "team2" ? "CONS" : "—",
+      team1: prosTeam === "team1" ? "PROS" : consTeam === "team1" ? "CONS" : fallbackTeam1,
+      team2: prosTeam === "team2" ? "PROS" : consTeam === "team2" ? "CONS" : fallbackTeam2,
     };
-  }, [matchState]);
+  }, [matchInfo?.opponents?.team1?.topicType, matchInfo?.opponents?.team2?.topicType, matchState]);
+
+  const conversationMessages = useMemo(() => {
+    const liveDebateMessages = messages
+      .filter((msg) => msg?.type === SOCKET_MESSAGE_TYPE.DEBATE_MESSAGE && (msg?.from === "team1" || msg?.from === "team2"))
+      .map((msg, idx) => ({
+        id: msg.id || `live-${idx}`,
+        team: msg.from,
+        timestamp: msg.timestamp,
+        text: msg.text || "",
+        order: idx,
+      }));
+
+    if (liveDebateMessages.length > 0) {
+      return [...liveDebateMessages].sort((a, b) => {
+        const ta = new Date(a.timestamp || 0).getTime();
+        const tb = new Date(b.timestamp || 0).getTime();
+        const aValid = !Number.isNaN(ta);
+        const bValid = !Number.isNaN(tb);
+
+        if (aValid && bValid && ta !== tb) return ta - tb;
+        if (aValid && !bValid) return -1;
+        if (!aValid && bValid) return 1;
+        return a.order - b.order;
+      });
+    }
+
+    const dbConversations = Array.isArray(matchInfo?.conversations) ? matchInfo.conversations : [];
+    return dbConversations
+      .map((conv, idx) => ({
+        id: `db-${idx}`,
+        team: conv?.team,
+        timestamp: conv?.timestamp,
+        text: conv?.message || "",
+        order: idx,
+      }))
+      .filter((msg) => msg.team === "team1" || msg.team === "team2")
+      .sort((a, b) => {
+        const ta = new Date(a.timestamp || 0).getTime();
+        const tb = new Date(b.timestamp || 0).getTime();
+        const aValid = !Number.isNaN(ta);
+        const bValid = !Number.isNaN(tb);
+
+        if (aValid && bValid && ta !== tb) return ta - tb;
+        if (aValid && !bValid) return -1;
+        if (!aValid && bValid) return 1;
+        return a.order - b.order;
+      });
+  }, [matchInfo?.conversations, messages]);
 
   return (
     <div className="w-full px-6 md:px-10 py-8 space-y-6">
@@ -353,6 +403,17 @@ export default function MatchDetailPage() {
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Scores</p>
             <p className="text-sm font-bold text-slate-900 mt-0.5">{scoreDisplay}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Start Time</p>
+            <p className="text-sm font-bold text-slate-900 mt-0.5">{fmtEpoch(dbStartTime)}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Finish Time</p>
+            <p className="text-sm font-bold text-slate-900 mt-0.5">{fmtEpoch(dbFinishTime)}</p>
           </div>
         </div>
 
@@ -478,6 +539,34 @@ export default function MatchDetailPage() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60">
             {loading ? (
               <div className="text-sm text-slate-500">Loading match details…</div>
+            ) : (effectiveStatus === "completed" || effectiveStatus === "cancelled") ? (
+              conversationMessages.length === 0 ? (
+                <div className="text-sm text-slate-500">No messages yet.</div>
+              ) : (
+                conversationMessages.map((msg) => {
+                  const isTeam1 = msg.team === "team1";
+                  const senderTeam = isTeam1 ? "TEAM1" : "TEAM2";
+                  const senderRole = isTeam1 ? roleByTeam.team1 : roleByTeam.team2;
+
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${isTeam1 ? "justify-start" : "justify-end"}`}
+                    >
+                      <div className={`max-w-[85%] rounded-xl border px-3 py-2.5 ${isTeam1 ? "border-blue-200 bg-blue-50" : "border-pink-200 bg-pink-50"}`}>
+                        <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">{msg.text}</p>
+                        <div className="mt-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-semibold uppercase">{senderTeam} · User · {senderRole}</span>
+                          <span>•</span>
+                          <span>{fmtTime(msg.timestamp)}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )
             ) : messages.length === 0 ? (
               <div className="text-sm text-slate-500">No messages yet.</div>
             ) : (

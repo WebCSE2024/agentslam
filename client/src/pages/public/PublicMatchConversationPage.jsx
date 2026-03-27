@@ -27,6 +27,14 @@ const fmtTime = (iso) => {
   return dt.toLocaleString();
 };
 
+const fmtEpoch = (value) => {
+  const ms = Number(value || 0);
+  if (!ms) return "—";
+  const dt = new Date(ms);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return dt.toLocaleString();
+};
+
 export default function PublicMatchConversationPage() {
   const { matchId } = useParams();
   const navigate = useNavigate();
@@ -66,16 +74,27 @@ export default function PublicMatchConversationPage() {
 
   const team1Role = matchInfo?.prosTeam === "team1" ? "PROS" : "CONS";
   const team2Role = matchInfo?.prosTeam === "team2" ? "PROS" : "CONS";
+  const dbStartTime = Number(matchInfo?.matchStartTime || 0);
+  const dbFinishTime = Number(matchInfo?.finishTime || 0);
 
-  const team1Messages = useMemo(
-    () => (Array.isArray(matchInfo?.conversations) ? matchInfo.conversations.filter((c) => c?.team === "team1") : []),
-    [matchInfo?.conversations]
-  );
+  const orderedMessages = useMemo(() => {
+    const conversations = Array.isArray(matchInfo?.conversations) ? matchInfo.conversations : [];
 
-  const team2Messages = useMemo(
-    () => (Array.isArray(matchInfo?.conversations) ? matchInfo.conversations.filter((c) => c?.team === "team2") : []),
-    [matchInfo?.conversations]
-  );
+    return conversations
+      .map((msg, idx) => ({ ...msg, __idx: idx }))
+      .sort((a, b) => {
+        const aTime = new Date(a?.timestamp || 0).getTime();
+        const bTime = new Date(b?.timestamp || 0).getTime();
+
+        const aValid = !Number.isNaN(aTime);
+        const bValid = !Number.isNaN(bTime);
+
+        if (aValid && bValid && aTime !== bTime) return aTime - bTime;
+        if (aValid && !bValid) return -1;
+        if (!aValid && bValid) return 1;
+        return a.__idx - b.__idx;
+      });
+  }, [matchInfo?.conversations]);
 
   return (
     <div className="w-full px-6 md:px-10 py-8 space-y-6">
@@ -131,79 +150,63 @@ export default function PublicMatchConversationPage() {
             </div>
           </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Start Time</p>
+            <p className="text-sm font-bold text-slate-900 mt-0.5">{fmtEpoch(dbStartTime)}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Finish Time</p>
+            <p className="text-sm font-bold text-slate-900 mt-0.5">{fmtEpoch(dbFinishTime)}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col min-h-[560px] max-h-[72vh]">
-          <div className="border-b border-slate-200 p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <MessageSquareText className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-black uppercase tracking-wide text-slate-900">Team1 Messages</h2>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-              <span className="font-bold uppercase">Team1:</span> {team1Name} · {team1Role}
-            </div>
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col min-h-[560px] max-h-[72vh]">
+        <div className="border-b border-slate-200 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <MessageSquareText className="h-5 w-5 text-indigo-600" />
+            <h2 className="text-lg font-black uppercase tracking-wide text-slate-900">Conversation</h2>
           </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60">
-            {loading ? (
-              <div className="text-sm text-slate-500">Loading conversations…</div>
-            ) : team1Messages.length === 0 ? (
-              <div className="text-sm text-slate-500">No messages yet.</div>
-            ) : (
-              team1Messages.map((msg, idx) => (
-                <motion.div
-                  key={`team1-${idx}-${msg.timestamp || idx}`}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border px-3 py-2.5 border-blue-200 bg-blue-50"
-                >
-                  <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">{msg.message}</p>
-                  <div className="mt-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-semibold uppercase">{msg?.user?.name || "team1"}</span>
-                    <span>•</span>
-                    <span>{fmtTime(msg.timestamp)}</span>
-                  </div>
-                </motion.div>
-              ))
-            )}
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <span className="font-bold uppercase">Team1:</span> {team1Name} ({team1Role})
+            <span className="mx-2">•</span>
+            <span className="font-bold uppercase">Team2:</span> {team2Name} ({team2Role})
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col min-h-[560px] max-h-[72vh]">
-          <div className="border-b border-slate-200 p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <MessageSquareText className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-black uppercase tracking-wide text-slate-900">Team2 Messages</h2>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-              <span className="font-bold uppercase">Team2:</span> {team2Name} · {team2Role}
-            </div>
-          </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60">
+          {loading ? (
+            <div className="text-sm text-slate-500">Loading conversations…</div>
+          ) : orderedMessages.length === 0 ? (
+            <div className="text-sm text-slate-500">No messages yet.</div>
+          ) : (
+            orderedMessages.map((msg, idx) => {
+              const isTeam1 = msg?.team === "team1";
+              const senderTeam = isTeam1 ? "TEAM1" : "TEAM2";
+              const senderRole = isTeam1 ? team1Role : team2Role;
+              const senderName = msg?.user?.name || "User";
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60">
-            {loading ? (
-              <div className="text-sm text-slate-500">Loading conversations…</div>
-            ) : team2Messages.length === 0 ? (
-              <div className="text-sm text-slate-500">No messages yet.</div>
-            ) : (
-              team2Messages.map((msg, idx) => (
+              return (
                 <motion.div
-                  key={`team2-${idx}-${msg.timestamp || idx}`}
+                  key={`chat-${idx}-${msg.timestamp || idx}`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border px-3 py-2.5 border-purple-200 bg-purple-50"
+                  className={`flex ${isTeam1 ? "justify-start" : "justify-end"}`}
                 >
-                  <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">{msg.message}</p>
-                  <div className="mt-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-semibold uppercase">{msg?.user?.name || "team2"}</span>
-                    <span>•</span>
-                    <span>{fmtTime(msg.timestamp)}</span>
+                  <div className={`max-w-[85%] rounded-xl border px-3 py-2.5 ${isTeam1 ? "border-blue-200 bg-blue-50" : "border-pink-200 bg-pink-50"}`}>
+                    <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">{msg.message}</p>
+                    <div className="mt-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-semibold uppercase">{senderTeam} · {senderName} · {senderRole}</span>
+                      <span>•</span>
+                      <span>{fmtTime(msg.timestamp)}</span>
+                    </div>
                   </div>
                 </motion.div>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

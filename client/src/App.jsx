@@ -11,6 +11,7 @@ import CommonMatchesPage from "@/pages/common/CommonMatchesPage";
 import MatchDetailPage from "@/pages/common/MatchDetailPage";
 import PublicMatchesPage from "@/pages/public/PublicMatchesPage";
 import PublicMatchConversationPage from "@/pages/public/PublicMatchConversationPage";
+import PublicLayout from "@/pages/public/PublicLayout";
 
 export default function App() {
   return (
@@ -39,8 +40,10 @@ export default function App() {
 
         {/* ── Public ── */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/public/matches" element={<PublicMatchesPage />} />
-        <Route path="/public/matches/:matchId" element={<PublicMatchConversationPage />} />
+        <Route path="/public" element={<PublicLayout />}>
+          <Route path="matches" element={<PublicMatchesPage />} />
+          <Route path="matches/:matchId" element={<PublicMatchConversationPage />} />
+        </Route>
 
         {/* ── Fallback ── */}
         <Route path="*" element={<Navigate to="/" replace />} />

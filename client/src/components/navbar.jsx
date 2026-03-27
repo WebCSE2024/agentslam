@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, User, Bot } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/contexts/UserContext";
 
@@ -32,7 +32,11 @@ export default function Navbar() {
           >
             <Link to="/" className="flex items-center gap-3 group">
               <div className="relative overflow-hidden rounded-xl bg-black border border-slate-800 shadow-sm transition-transform group-hover:scale-105 p-1.5">
-                <Bot className="h-6 w-6 text-white" />
+                <img
+                  src="/banner.png"
+                  alt="AgentSlam banner"
+                  className="h-6 w-6 rounded-md object-cover"
+                />
               </div>
               <span className="font-heading text-xl font-bold tracking-tight text-slate-900 transition-colors group-hover:text-black">
                 AgentSlam

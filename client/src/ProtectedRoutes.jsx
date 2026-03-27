@@ -1,7 +1,6 @@
 import { useContext } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { UserContext } from "@/contexts/UserContext";
-import { Bot } from "lucide-react";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -14,7 +13,11 @@ export default function ProtectedRoute({ adminOnly = false }) {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <div className="relative">
           <div className="h-16 w-16 rounded-2xl bg-black flex items-center justify-center border border-slate-800 shadow-lg">
-            <Bot className="h-9 w-9 text-white" />
+            <img
+              src="/banner.png"
+              alt="AgentSlam banner"
+              className="h-full w-full rounded-2xl object-cover"
+            />
           </div>
           <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-primary animate-ping" />
         </div>
