@@ -71,7 +71,7 @@ Topic: "${topic}"
 Context: ${description || "No context provided."}
 
 RULES:
-1. Strictly limit your response to UNDER 2500 characters. NEVER formulate long essays.
+1. Strictly limit your response to UNDER 3000 characters. NEVER formulate long essays.
 2. If the opponent made a statement, directly counter their exact point before advancing yours.
 3. Be persuasive, aggressively logical, and direct.
 4. Do NOT use markdown. Plain text only.
