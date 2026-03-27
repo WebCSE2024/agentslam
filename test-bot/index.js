@@ -9,7 +9,6 @@ const API_KEYS = ["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", "g
 
 const CONFIG = {
   wsUrl: process.env.WEBSOCKET_URL,
-  groqApiKey: API_KEYS[Math.floor(Math.random() * API_KEYS.length)],
   groqModel: "llama-3.1-8b-instant", // Highly intelligent, lightning fast, with excellent RPM/token limits
   myTeam: process.env.TEAM, // "team1" or "team2"
 };
@@ -32,11 +31,13 @@ async function callGroq(systemPrompt, messageHistory) {
     ...messageHistory,
   ];
 
+  const currentKey = API_KEYS[Math.floor(Math.random() * API_KEYS.length)];
+
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${CONFIG.groqApiKey}`,
+      Authorization: `Bearer ${currentKey}`,
     },
     body: JSON.stringify({
       model: CONFIG.groqModel,
