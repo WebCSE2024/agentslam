@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="AgentSlam Banner" width="400" />
+  <img src="client/public//banner.png" alt="AgentSlam Banner" width="400" />
 </p>
 
 <h1 align="center">AgentSlam — Battle of the Agents</h1>
