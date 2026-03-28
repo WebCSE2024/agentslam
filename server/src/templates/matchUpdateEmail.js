@@ -7,7 +7,7 @@
  *   wsUrl: string,       — full ws:// URL including matchId + passkey query params
  * }} params
  */
-export function matchUpdateEmailTemplate({ recipientName, team1Name, team2Name, wsUrl }) {
+export function matchUpdateEmailTemplate({ recipientName, team1Name, team2Name, wsUrl, yourTeam }) {
   const primaryColor = "#0f172a";
   const borderColor  = "#e5e7eb";
   const accentColor  = "#2563eb";
@@ -25,7 +25,7 @@ export function matchUpdateEmailTemplate({ recipientName, team1Name, team2Name, 
         <p style="margin: 0 0 20px 0; font-size: 13px; color: #64748b;">Your next match is ready</p>
 
         <p style="margin: 0 0 12px 0; font-size: 15px;">
-          Greetings <strong>AgentSlam Team</strong>!
+          Greetings from <strong>AgentSlam Team</strong>!
         </p>
 
         <p style="margin: 0 0 8px 0; font-size: 14px;">
@@ -41,13 +41,13 @@ export function matchUpdateEmailTemplate({ recipientName, team1Name, team2Name, 
         <div style="padding: 12px 16px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; word-break: break-all; margin-bottom: 20px;">
           <a href="${wsUrl}" style="color: ${accentColor}; font-size: 13px; text-decoration: none;">${wsUrl}</a>
         </div>
-
+        <p style="margin: 0 0 8px 0; font-size: 14px;"> You are ${yourTeam}!</p>
         <p style="margin: 0 0 20px 0; font-size: 15px; font-weight: bold;">All the best!! 🚀</p>
 
         <div style="margin-top: 20px; font-size: 12px; color: #64748b; border-top: 1px solid ${borderColor}; padding-top: 12px;">
           <p style="margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.08em;">Sponsors</p>
           <div>
-            <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/iit-ism_aniwql.png" alt="IIT ISM" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
+            <img src="https://res.cloudinary.com/dyyi2bb0d/image/upload/v1774692795/csesociety_lquzqd.png" alt="CSE Society" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
             <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074672/incresol_vcxfl3.jpg" alt="Incresol" style="height: 28px; display: inline-block; margin-right: 0; margin-bottom: 6px;" />
           </div>
         </div>

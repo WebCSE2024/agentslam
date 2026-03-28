@@ -558,7 +558,7 @@ export default function MatchDetailPage() {
                       <div className={`max-w-[85%] rounded-xl border px-3 py-2.5 ${isTeam1 ? "border-blue-200 bg-blue-50" : "border-pink-200 bg-pink-50"}`}>
                         <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">{msg.text}</p>
                         <div className="mt-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-semibold uppercase">{senderTeam} · User · {senderRole}</span>
+                          <span className="font-semibold uppercase">{senderTeam} · {senderRole}</span>
                           <span>•</span>
                           <span>{fmtTime(msg.timestamp)}</span>
                         </div>

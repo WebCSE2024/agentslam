@@ -54,13 +54,13 @@ export function onboardingEmailTemplate({
         </div>
 
         <p style="margin: 12px 0 0 0; font-size: 13px;">
-          Website: <a href="https://agglomeration-la57.onrender.com" style="color: ${primaryColor}; text-decoration: none;">https://agglomeration-la57.onrender.com</a>
+          Website: <a href="https://agentslam.vercel.app" style="color: ${primaryColor}; text-decoration: none;">https://agentslam.vercel.app</a>
         </p>
 
         <div style="margin-top: 20px;">
           <p style="margin: 0 0 8px 0; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.08em;">Sponsors</p>
           <div style="display: block;">
-            <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/iit-ism_aniwql.png" alt="CSE Batch'10" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 8px;" />
+            <img src="https://res.cloudinary.com/dyyi2bb0d/image/upload/v1774692795/csesociety_lquzqd.png" alt="CSE Society" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
             <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074672/incresol_vcxfl3.jpg" alt="Incresol" style="height: 28px; display: inline-block; margin-right: 0; margin-bottom: 8px;" />
           </div>
         </div>

@@ -6,7 +6,7 @@ import rateLimiter from "../middlewares/ratelimit.middleware.js";
 // 60 requests per minute per user for match management
 const matchLimiter = rateLimiter.byUser({
     windowMs: 60 * 1000,
-    max: 60,
+    max: 15,
     keyPrefix: "match",
 });
 

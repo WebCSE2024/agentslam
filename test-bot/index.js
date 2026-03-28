@@ -53,6 +53,7 @@ async function callGroq(systemPrompt, messageHistory) {
   }
 
   const data = await response.json();
+  console.log(data.choices[0].message.content.slice(0, 100) + "..."); // Log the start of the response for debugging
   return data.choices[0].message.content.trim();
 }
 
