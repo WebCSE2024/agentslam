@@ -4,8 +4,8 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
 const resetLimiter = rateLimiter.byUser({
-    windowMs: 5 * 60 * 1000,
-    max: 2,
+    windowMs: 60 * 1000,
+    max: 5,
     keyPrefix: "reset",
 });
 

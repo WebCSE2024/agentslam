@@ -3,10 +3,10 @@ import userController from "../controllers/user.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import rateLimiter from "../middlewares/ratelimit.middleware.js";
 
-// 60 requests per minute per user for general user endpoints
+// 30 requests per minute per user for general user endpoints
 const userLimiter = rateLimiter.byUser({
     windowMs: 60 * 1000,
-    max: 10,
+    max: 30,
     keyPrefix: "user",
 });
 

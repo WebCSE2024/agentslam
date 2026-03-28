@@ -176,14 +176,15 @@ class SocketService {
 
                 if (expectedType === 'passkey') {
 
-                    const connectedUser = await redisClient.get(decoded.sub);
+                    const key = `passkey:${decoded.sub}`;
+                    const connectedUser = await redisClient.get(key);
                     if (connectedUser) {
                         socket.write("HTTP/1.1 401 Already Connected!\r\n\r\n");
                         socket.destroy();
                         return;
                     }
 
-                    await redisClient.set(decoded.sub, "connected")
+                    await redisClient.set(key, "connected");
                 }
                 const userId = String(decoded.sub);
                 const sid = decoded.sid;
@@ -408,12 +409,16 @@ class SocketService {
                 }
             })
 
-            ws.on('close', (code, reason) => {
+            ws.on('close', async (code, reason) => {
                 const matchId = ws.matchId;
                 const sockets = this.socketStore.get(matchId);
                 const username = ws.user.username
                 if (sockets && sockets.size) {
                     sockets.delete(ws);
+                }
+
+                if(ws.user.authType === "passkey") {
+                    await redisClient.del(`passkey:${ws.user.id}`);
                 }
 
                 reason = reason.toString() || "No reason provided";

@@ -82,7 +82,7 @@ export function matchResultEmailTemplate({
         <div style="margin-top: 20px; font-size: 12px; color: #64748b; border-top: 1px solid ${borderColor}; padding-top: 12px;">
           <p style="margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.08em;">Sponsors</p>
           <div>
-            <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074673/iit-ism_aniwql.png" alt="IIT ISM" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
+            <img src="https://res.cloudinary.com/dyyi2bb0d/image/upload/v1774692795/csesociety_lquzqd.png" alt="CSE Society" style="height: 28px; display: inline-block; margin-right: 10px; margin-bottom: 6px;" />
             <img src="https://res.cloudinary.com/dznhfdvrn/image/upload/v1769074672/incresol_vcxfl3.jpg" alt="Incresol" style="height: 28px; display: inline-block; margin-right: 0; margin-bottom: 6px;" />
           </div>
         </div>

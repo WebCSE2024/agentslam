@@ -226,8 +226,8 @@ class MatchController{
         
         logInfo(`Match activated successfully for ${team1Name} vs ${team2Name}.`);
         logInfo(`WebSocket URLs generated. \nTeam1: ${wsUrl1} \nTeam2: ${wsUrl2}`);
-        const tpl1 = matchUpdateEmailTemplate({ recipientName: team1Name, team1Name, team2Name, wsUrl: wsUrl1 });
-        const tpl2 = matchUpdateEmailTemplate({ recipientName: team2Name, team1Name, team2Name, wsUrl: wsUrl2 });
+        const tpl1 = matchUpdateEmailTemplate({ recipientName: team1Name, team1Name, team2Name, wsUrl: wsUrl1, yourTeam: 'team1' });
+        const tpl2 = matchUpdateEmailTemplate({ recipientName: team2Name, team1Name, team2Name, wsUrl: wsUrl2, yourTeam: 'team2' });
 
         await sendEmail({ to: team1User.email, subject: tpl1.subject, html: tpl1.html, text: tpl1.text })
             .catch(err => console.error(`Failed to send match update email to team1 (${team1User.email}):`, err.message));
