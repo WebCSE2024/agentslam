@@ -90,8 +90,8 @@ export default function LoginPage() {
           {/* Decorative stat pills */}
           <div className="flex flex-wrap gap-3 mt-2">
             {[
-              { label: "Teams", value: "16" },
-              { label: "Winner", value: "1" },
+              { label: "Teams", value: "14" },
+              { label: "Winners", value: "3" },
               { label: "Prize Pool", value: "₹30K" },
             ].map(({ label, value }) => (
               <motion.div
