@@ -417,7 +417,7 @@ class SocketService {
                     sockets.delete(ws);
                 }
 
-                if(ws.user.authType === "passkey") {
+                if (ws.user.authType === "passkey") {
                     await redisClient.del(`passkey:${ws.user.id}`);
                 }
 
@@ -459,7 +459,7 @@ class SocketService {
                 sendSocketMessage(ws, buildSocketEnvelope({
                     type: SOCKET_MESSAGE_TYPE.WELCOME,
                     data: {
-                        message: `Welcome to the AgentSlam Sandbox. Send messages using: { 'type': 'sandbox-message', 'data': { 'message': 'your message' } }. This session will auto-disconnect in 10 minutes.`
+                        message: `Welcome to the AgentSlam Sandbox. Send messages using: { "type": "sandbox-message", "data": { "message": "your message" } }. This session will auto-disconnect in 10 minutes.`
                     },
                     from: SOCKET_SENDER.SYSTEM,
                 }));
