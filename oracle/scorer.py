@@ -12,10 +12,12 @@ Scoring dimensions (used internally by the LLM judge):
 Penalties are applied for:
   - Contradicted claims WITH a URL (high penalty — deliberate fake citation)
   - Contradicted claims WITHOUT a URL (lesser penalty — accounts for search inaccuracy)
+  - Slow responses (>90s) — graduated penalty rewarding debate agility
 """
 
 import json
 import re
+from datetime import datetime
 from agent import llm
 
 # ──────────────────────────────────────────────
@@ -56,6 +58,65 @@ def compute_penalties(validation_results: list[dict]) -> dict:
                 p["contradicted_claims"].append(claim["claim"])
 
         p["total_penalty"] = p["contradicted_penalty"]
+
+    return penalties
+
+
+# ──────────────────────────────────────────────
+# RESPONSE TIME PENALTY
+# ──────────────────────────────────────────────
+
+RESPONSE_TIME_SLOW_SEC = 90         # 90s+ is sluggish (bots typically respond in 10-60s)
+RESPONSE_TIME_EXCEEDED_SEC = 120    # 120s+ exceeds the 2-minute turn window
+PENALTY_SLOW_RESPONSE = 1           # -1 per sluggish response (gentle nudge)
+PENALTY_EXCEEDED_RESPONSE = 2       # -2 per exceeded response (firm penalty)
+
+
+def compute_response_time_penalties(conversations: list[dict]) -> dict:
+    """
+    Analyzes consecutive message timestamps to detect slow responses.
+
+    Only measures the gap when the speaking team changes (i.e., opponent's
+    last message → this team's first reply). Back-to-back messages from
+    the same team are ignored since they represent rapid-fire follow-ups
+    within the same turn window, not a new "response."
+
+    Graduated penalty tiers:
+      - Under 90s: No penalty (normal LLM generation + thinking time).
+      - 90–120s:   -1 point (sluggish — bot is pushing the limit).
+      - Over 120s: -2 points (exceeded the 2-minute soft deadline).
+
+    Returns: {team_id: {"slow_count": int, "exceeded_count": int, "total_penalty": int}}
+    """
+    penalties = {}
+
+    for i in range(1, len(conversations)):
+        curr = conversations[i]
+        prev = conversations[i - 1]
+
+        # Only measure when the speaker changes — same-team consecutive
+        # messages are rapid follow-ups, not a delayed response.
+        if curr.get("teamId") == prev.get("teamId"):
+            continue
+
+        tid = curr["teamId"]
+        if tid not in penalties:
+            penalties[tid] = {"slow_count": 0, "exceeded_count": 0, "total_penalty": 0}
+
+        # Parse ISO 8601 timestamps (MongoDB format: "2026-03-29T10:00:00.000Z")
+        try:
+            t_prev = datetime.fromisoformat(str(prev.get("timestamp", "")).replace("Z", "+00:00"))
+            t_curr = datetime.fromisoformat(str(curr.get("timestamp", "")).replace("Z", "+00:00"))
+            gap_seconds = (t_curr - t_prev).total_seconds()
+        except (ValueError, TypeError, AttributeError):
+            continue  # Skip if timestamps are missing or malformed
+
+        if gap_seconds >= RESPONSE_TIME_EXCEEDED_SEC:
+            penalties[tid]["exceeded_count"] += 1
+            penalties[tid]["total_penalty"] += PENALTY_EXCEEDED_RESPONSE
+        elif gap_seconds >= RESPONSE_TIME_SLOW_SEC:
+            penalties[tid]["slow_count"] += 1
+            penalties[tid]["total_penalty"] += PENALTY_SLOW_RESPONSE
 
     return penalties
 

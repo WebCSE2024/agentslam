@@ -16,7 +16,7 @@ import re
 import random
 from agent import llm
 from validators import validate_message
-from scorer import compute_penalties, score_debate, compute_final_scores
+from scorer import compute_penalties, compute_response_time_penalties, score_debate, compute_final_scores
  
 # ──────────────────────────────────────────────
 # DISQUALIFICATION LOGIC
@@ -215,8 +215,19 @@ def run_judge(payload: dict) -> dict:
         result = validate_message(convo["teamId"], convo["message"])
         validation_results.append(result)
  
-    # ── STEP 2: Compute penalties ─────────────────────────────────────────
+    # ── STEP 2: Compute content penalties ─────────────────────────────────────
     penalties = compute_penalties(validation_results)
+ 
+    # ── STEP 2b: Compute response time penalties (pure math, no LLM) ─────
+    rt_penalties = compute_response_time_penalties(conversations)
+    for tid in team_ids:
+        if tid not in penalties:
+            penalties[tid] = {"contradicted_penalty": 0, "total_penalty": 0, "contradicted_claims": []}
+        rt = rt_penalties.get(tid, {})
+        penalties[tid]["response_time_penalty"] = rt.get("total_penalty", 0)
+        penalties[tid]["slow_responses"] = rt.get("slow_count", 0)
+        penalties[tid]["exceeded_responses"] = rt.get("exceeded_count", 0)
+        penalties[tid]["total_penalty"] += rt.get("total_penalty", 0)
  
     # ── STEP 3: Check disqualifications ───────────────────────────────────
     disqualified = []
@@ -287,6 +298,9 @@ def run_judge(payload: dict) -> dict:
     penalty_breakdown = {
         tid: {
             "contradicted_penalty": penalties.get(tid, {}).get("contradicted_penalty", 0),
+            "response_time_penalty": penalties.get(tid, {}).get("response_time_penalty", 0),
+            "slow_responses": penalties.get(tid, {}).get("slow_responses", 0),
+            "exceeded_responses": penalties.get(tid, {}).get("exceeded_responses", 0),
             "total_penalty": penalties.get(tid, {}).get("total_penalty", 0),
         }
         for tid in team_ids
