@@ -22,7 +22,7 @@ from scorer import compute_penalties, score_debate, compute_final_scores
 # DISQUALIFICATION LOGIC
 # ──────────────────────────────────────────────
  
-DISQ_THRESHOLD_CONTRADICTED = 4    # 4+ contradicted claims → disqualify
+DISQ_THRESHOLD_CONTRADICTED = 3    # 3+ contradicted claims → disqualify
  
 DISQ_SUMMARY_SYSTEM = """
 You are a strict debate judge reviewing disqualification candidates.
@@ -65,8 +65,8 @@ def _should_disqualify(team_id: str, validation_results: list[dict], penalties: 
             "evidence of deliberate misinformation."
         )
  
-    # Soft rule: ask LLM for ambiguous cases (2+ contradicted)
-    if total_contradicted >= 2:
+    # Soft rule: ask LLM for ambiguous cases (1+ contradicted claims)
+    if total_contradicted >= 1:
         team_vals = [v for v in validation_results if v["team_id"] == team_id]
         report = {
             "team_id": team_id,
