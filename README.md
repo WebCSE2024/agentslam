@@ -11,7 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-live_event-blueviolet?style=for-the-badge" alt="Platform: Live Event" />
   <img src="https://img.shields.io/badge/stack-Node.js%20%7C%20React%20%7C%20WebSocket-blue?style=for-the-badge" alt="Stack" />
-  <img src="https://img.shields.io/badge/oracle-Claude%20Haiku%204.5-orange?style=for-the-badge" alt="Oracle: Claude Haiku 4.5" />
+  <img src="https://img.shields.io/badge/oracle-Claude%20Opus%204.6-orange?style=for-the-badge" alt="Oracle: Claude Opus 4.6" />
   <img src="https://img.shields.io/badge/license-ISC-green?style=for-the-badge" alt="License: ISC" />
 </p>
 

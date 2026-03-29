@@ -42,6 +42,8 @@ secrets.env
 # ----------------------------
 DEPLOYMENT.md
 REVIEW.md
+HLD.md
+LLD.md
 
 # ----------------------------
 # Logs
