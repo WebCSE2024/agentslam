@@ -34,6 +34,7 @@ app.add_middleware(
 class ConversationEntry(BaseModel):
     teamId: str
     message: str
+    timestamp: str = None
  
 class DebateRequest(BaseModel):
     matchId: str = Field(..., example="match-001")

@@ -99,17 +99,20 @@ def compute_response_time_penalties(conversations: list[dict]) -> dict:
         if curr.get("teamId") == prev.get("teamId"):
             continue
 
-        tid = curr["teamId"]
+        tid = curr.get("teamId")
+        if not tid:
+            continue
+
         if tid not in penalties:
             penalties[tid] = {"slow_count": 0, "exceeded_count": 0, "total_penalty": 0}
 
-        # Parse ISO 8601 timestamps (MongoDB format: "2026-03-29T10:00:00.000Z")
+        # Handle ISO 8601 timestamps (supports MongoDB/JS format with 'Z' as UTC)
         try:
             t_prev = datetime.fromisoformat(str(prev.get("timestamp", "")).replace("Z", "+00:00"))
             t_curr = datetime.fromisoformat(str(curr.get("timestamp", "")).replace("Z", "+00:00"))
             gap_seconds = (t_curr - t_prev).total_seconds()
         except (ValueError, TypeError, AttributeError):
-            continue  # Skip if timestamps are missing or malformed
+            continue  # Skip turn-time penalty if timestamp is missing/invalid
 
         if gap_seconds >= RESPONSE_TIME_EXCEEDED_SEC:
             penalties[tid]["exceeded_count"] += 1
