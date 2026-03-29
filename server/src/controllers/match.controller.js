@@ -256,9 +256,10 @@ class MatchController{
         match.matchStatus = MATCH_STATUS.STARTED;
         const turn = Math.random() < 0.5 ? 'team1' : 'team2';
         
-        if (!match.matchStartTime || Number(match.matchStartTime) <= 0) {
-            match.matchStartTime = Date.now();
-        }
+        // if (!match.matchStartTime || Number(match.matchStartTime) <= 0) {
+        //     match.matchStartTime = Date.now();
+        // }
+        match.matchStartTime = Date.now();
         const finishTime = Number(match.matchStartTime) + MATCH_DURATION;
         match.finishTime = finishTime;
 
